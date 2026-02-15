@@ -751,7 +751,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Dodane": "Doda\u00c4\u2021",
+            "Dodane": "Doda\u0102\u201e\u00e2\u20ac\u02c7",
             "Sciezka": "={{ $('Select Random File').first().json.selectedPath }}",
             "Nazwa Zdjecia": "={{ $('Select Random File').first().json.fileName }}",
             "Opis": "={{ $('Select Random File').first().json.description_social || $('Apply AI Caption').first().json.aiDescription }}"
@@ -884,10 +884,8 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "gid=1",
-          "mode": "list",
-          "cachedResultName": "Revenue",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vmgmxeCFrTMXG9N4q0iV17bCIYtBkPw6Fvtzt9bHCzU/edit#gid=1"
+          "value": "Revenue",
+          "mode": "name"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -1004,7 +1002,8 @@
           "id": "E73O5SYajf2go40V",
           "name": "Google Sheets account"
         }
-      }
+      },
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {
