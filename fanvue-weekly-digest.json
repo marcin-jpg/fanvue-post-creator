@@ -41,7 +41,8 @@
       "typeVersion": 1.1,
       "position": [280, 320],
       "id": "get-post-history",
-      "name": "Get Post History"
+      "name": "Get Post History",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -53,7 +54,8 @@
       "typeVersion": 1.1,
       "position": [500, 320],
       "id": "get-media-catalog",
-      "name": "Get Media Catalog"
+      "name": "Get Media Catalog",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
