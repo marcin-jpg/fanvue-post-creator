@@ -103,7 +103,7 @@
         320
       ],
       "parameters": {
-        "jsCode": "// Get all available media from table\nconst allMedia = $input.all();\n\n// Filter only items where added_to_fanvue is false\nconst availableMedia = allMedia.filter(item => {\n  if (item.json.hasOwnProperty('added_to_fanvue')) {\n    return item.json.added_to_fanvue === false;\n  }\n  return item.json.added_to_social_media === false;\n});\n\nif (availableMedia.length === 0) {\n  throw new Error('No available media found in the catalog (all already posted to Fanvue)');\n}\n\n// Select random file\nconst randomIndex = Math.floor(Math.random() * availableMedia.length);\nconst selectedMedia = availableMedia[randomIndex];\n\n// Fallback descriptions for when OpenAI refused\nconst fallbackDescriptions = [\n  \"Hey loves! How's your day going? Mine just got better seeing you here \\ud83d\\udc95\\ud83d\\udd25\",\n  \"Just thinking about you... wanna keep me company tonight? \\ud83d\\udc8b\\ud83d\\ude0f\",\n  \"Something special just for my favorite subscribers \\ud83d\\udc95 You deserve it!\",\n  \"Miss me? Because I definitely miss you \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Guess what I've been up to today? \\ud83d\\ude0f\\ud83d\\udd25 Hint: it involves you...\",\n  \"Hey baby, this one's just for you \\ud83d\\udc95 Hope it makes your day better!\",\n  \"Feeling a little naughty today... care to join me? \\ud83d\\ude08\\ud83d\\udc8b\",\n  \"You're the reason I smile \\ud83d\\udc95 Thank you for being here with me!\",\n  \"What would you do if you were here with me right now? \\ud83d\\ude0f\\ud83d\\udd25\",\n  \"Just wanted to share this moment with you \\ud83d\\udc8b You're special to me!\",\n  \"Good morning/evening beautiful people! \\ud83d\\udc95 How's everyone doing?\",\n  \"Made this just for you baby \\ud83d\\udd25 Hope you like it as much as I do!\",\n  \"Thinking about all my amazing fans right now \\ud83d\\udc95 You guys are the best!\",\n  \"Wanna see more? Let me know in the comments \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Can't stop thinking about you today \\ud83d\\udc95 Is that weird? \\ud83d\\ude0f\"\n];\n\n// Check if description is an OpenAI refusal\nfunction isRefusal(text) {\n  if (!text) return true;\n  const lower = text.toLowerCase();\n  return lower.includes(\"i'm sorry\") || \n         lower.includes(\"i can't\") || \n         lower.includes(\"i cannot\") ||\n         lower.includes(\"unable to\") ||\n         lower.includes(\"i'm unable\") ||\n         text.length < 10;\n}\n\n// Get description or use fallback\nlet description = selectedMedia.json.description_fanvue;\nif (isRefusal(description)) {\n  description = fallbackDescriptions[Math.floor(Math.random() * fallbackDescriptions.length)];\n}\n\n// Determine media type from file extension\nconst filePath = selectedMedia.json.file_path;\nconst ext = filePath.toLowerCase().slice(filePath.lastIndexOf('.'));\nconst isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);\n\n// PPV: videos are always PPV\nconst isPPV = isVideo;\nconst ppvPrice = 4.99;\n\nreturn [{\n  json: {\n    id: selectedMedia.json.id,\n    selectedPath: selectedMedia.json.file_path,\n    fileName: filePath.split('/').pop(),\n    mediaType: isVideo ? 'video' : 'image',\n    description_fanvue: description,\n    description_social: selectedMedia.json.description_social,\n    source_folder: selectedMedia.json.source_folder,\n    isPPV: isPPV,\n    ppvPrice: isPPV ? ppvPrice : 0,\n    totalAvailable: availableMedia.length,\n    selectedIndex: randomIndex\n  }\n}];"
+        "jsCode": "// Get all available media from table\nconst allMedia = $input.all();\n\n// Filter only items where added_to_fanvue is false\nconst availableMedia = allMedia.filter(item => {\n  if (item.json.hasOwnProperty('added_to_fanvue')) {\n    return item.json.added_to_fanvue === false;\n  }\n  return item.json.added_to_social_media === false;\n});\n\nif (availableMedia.length === 0) {\n  throw new Error('No available media found in the catalog (all already posted to Fanvue)');\n}\n\n// Select random file\nconst randomIndex = Math.floor(Math.random() * availableMedia.length);\nconst selectedMedia = availableMedia[randomIndex];\n\n// Fallback descriptions for when OpenAI refused\nconst fallbackDescriptions = [\n  \"Hey loves! How's your day going? Mine just got better seeing you here \\ud83d\\udc95\\ud83d\\udd25\",\n  \"Just thinking about you... wanna keep me company tonight? \\ud83d\\udc8b\\ud83d\\ude0f\",\n  \"Something special just for my favorite subscribers \\ud83d\\udc95 You deserve it!\",\n  \"Miss me? Because I definitely miss you \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Guess what I've been up to today? \\ud83d\\ude0f\\ud83d\\udd25 Hint: it involves you...\",\n  \"Hey baby, this one's just for you \\ud83d\\udc95 Hope it makes your day better!\",\n  \"Feeling a little naughty today... care to join me? \\ud83d\\ude08\\ud83d\\udc8b\",\n  \"You're the reason I smile \\ud83d\\udc95 Thank you for being here with me!\",\n  \"What would you do if you were here with me right now? \\ud83d\\ude0f\\ud83d\\udd25\",\n  \"Just wanted to share this moment with you \\ud83d\\udc8b You're special to me!\",\n  \"Good morning/evening beautiful people! \\ud83d\\udc95 How's everyone doing?\",\n  \"Made this just for you baby \\ud83d\\udd25 Hope you like it as much as I do!\",\n  \"Thinking about all my amazing fans right now \\ud83d\\udc95 You guys are the best!\",\n  \"Wanna see more? Let me know in the comments \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Can't stop thinking about you today \\ud83d\\udc95 Is that weird? \\ud83d\\ude0f\"\n];\n\n// Check if description is an OpenAI refusal\nfunction isRefusal(text) {\n  if (!text) return true;\n  const lower = text.toLowerCase();\n  return lower.includes(\"i'm sorry\") || \n         lower.includes(\"i can't\") || \n         lower.includes(\"i cannot\") ||\n         lower.includes(\"unable to\") ||\n         lower.includes(\"i'm unable\") ||\n         text.length < 10;\n}\n\n// Get description or use fallback\nlet description = selectedMedia.json.description_fanvue;\nif (isRefusal(description)) {\n  description = fallbackDescriptions[Math.floor(Math.random() * fallbackDescriptions.length)];\n}\n\n// Determine media type from file extension\nconst filePath = selectedMedia.json.file_path;\nconst ext = filePath.toLowerCase().slice(filePath.lastIndexOf('.'));\nconst isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);\n\n// PPV: videos are always PPV, dynamic pricing\nconst isPPV = isVideo;\nconst now = new Date();\nconst dayOfWeek = now.getDay(); // 0=Sun, 6=Sat\nconst hour = now.getHours();\nconst isWeekend = dayOfWeek === 0 || dayOfWeek === 6;\nconst isEvening = hour >= 18 && hour <= 21;\nlet ppvPrice = isWeekend ? 6.99 : 4.99;\nif (isEvening) ppvPrice += 1.00;\n\nreturn [{\n  json: {\n    id: selectedMedia.json.id,\n    selectedPath: selectedMedia.json.file_path,\n    fileName: filePath.split('/').pop(),\n    mediaType: isVideo ? 'video' : 'image',\n    description_fanvue: description,\n    description_social: selectedMedia.json.description_social,\n    source_folder: selectedMedia.json.source_folder,\n    isPPV: isPPV,\n    ppvPrice: isPPV ? ppvPrice : 0,\n    totalAvailable: availableMedia.length,\n    selectedIndex: randomIndex\n  }\n}];"
       }
     },
     {
@@ -461,7 +461,7 @@
         "sendTo": "marcinjarosz@icloud.com",
         "subject": "=Fanvue Post Published {{ $('Apply AI Caption').item.json.isPPV ? '[PPV]' : '[FREE]' }} - {{ $('Apply AI Caption').item.json.fileName }}",
         "emailType": "html",
-        "message": "=<h2>Post Published Successfully!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.fileName }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Type</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.mediaType }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>PPV</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.isPPV ? 'Yes - $' + $('Apply AI Caption').item.json.ppvPrice : 'No - Free' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.aiDescription }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Audience</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.isPPV ? 'everyone' : 'followers-and-subscribers' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Select Random File').first().json.totalAvailable - 1 }}</td></tr>\n</table>",
+        "message": "=<h2>Post Published Successfully!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.fileName }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Type</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.mediaType }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>PPV</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.isPPV ? 'Yes - $' + $('Apply AI Caption').item.json.ppvPrice : 'No - Free' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.aiDescription }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Audience</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.isPPV ? 'everyone' : 'followers-and-subscribers' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Select Random File').first().json.totalAvailable - 1 }}</td></tr>\n</table>\n{{ $('Select Random File').first().json.totalAvailable - 1 < 10 ? '<div style=\"margin-top: 12px; padding: 12px; background: #ffcccc; border: 2px solid #cc0000; border-radius: 8px; text-align: center;\"><strong style=\"color: #cc0000; font-size: 16px;\">LOW CONTENT WARNING</strong><br>Only <strong>' + ($('Select Random File').first().json.totalAvailable - 1) + '</strong> media files remaining! Add more content to Dropbox and run media catalog sync.</div>' : '' }}",
         "options": {}
       },
       "id": "send-success-email-v2",
@@ -751,7 +751,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Dodane": "Doda\u0107",
+            "Dodane": "Doda\u00c4\u2021",
             "Sciezka": "={{ $('Select Random File').first().json.selectedPath }}",
             "Nazwa Zdjecia": "={{ $('Select Random File').first().json.fileName }}",
             "Opis": "={{ $('Select Random File').first().json.description_social || $('Apply AI Caption').first().json.aiDescription }}"
@@ -860,10 +860,10 @@
     },
     {
       "parameters": {
-        "content": "## New Features (v2.1)\n\n### Post History\n- Logs every post to `post_history` DataTable\n- Tracks: file, caption, type, audience, PPV, timestamp\n\n### Cross-posting to Instagram\n- Images auto-added to Google Sheets \"Zdjecia Juwellia\"\n- Status \"Doda\u0107\" = ready for Blotato to publish on IG\n- Only images (not videos)\n- Uses description_social from media_catalog"
+        "content": "## New Features (v2.2)\n\n### Post History (v2.1)\n- Logs every post to `post_history` DataTable\n\n### Cross-posting to Instagram (v2.1)\n- Images auto-added to Google Sheets for Blotato\n- Only images (not videos)\n\n### Dynamic PPV Pricing (v2.2)\n- Weekday: $4.99, Weekend: $6.99\n- Evening bonus (18-21h): +$1.00\n\n### Low Content Alert (v2.2)\n- Red warning in email when < 10 media files left\n\n### Revenue Dashboard (v2.2)\n- Every post logged to Google Sheets \"Revenue\" tab\n- Tracks: date, time, file, type, PPV, price, caption"
       },
       "id": "sticky-new-features-v2",
-      "name": "New Features v2.1",
+      "name": "New Features v2.2",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -871,6 +871,140 @@
         -100
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vmgmxeCFrTMXG9N4q0iV17bCIYtBkPw6Fvtzt9bHCzU",
+          "mode": "list",
+          "cachedResultName": "Zdjecia Juwellia",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vmgmxeCFrTMXG9N4q0iV17bCIYtBkPw6Fvtzt9bHCzU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=1",
+          "mode": "list",
+          "cachedResultName": "Revenue",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vmgmxeCFrTMXG9N4q0iV17bCIYtBkPw6Fvtzt9bHCzU/edit#gid=1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Data": "={{ new Date().toLocaleDateString('pl-PL') }}",
+            "Godzina": "={{ new Date().toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'}) }}",
+            "Plik": "={{ $('Select Random File').first().json.fileName }}",
+            "Typ": "={{ $('Select Random File').first().json.mediaType }}",
+            "PPV": "={{ $('Apply AI Caption').first().json.isPPV ? 'Tak' : 'Nie' }}",
+            "Cena": "={{ $('Apply AI Caption').first().json.isPPV ? $('Apply AI Caption').first().json.ppvPrice : 0 }}",
+            "Caption": "={{ $('Apply AI Caption').first().json.aiDescription.substring(0, 200) }}",
+            "Audience": "={{ $('Apply AI Caption').first().json.isPPV ? 'everyone' : 'followers-and-subscribers' }}",
+            "Weekend": "={{ new Date().getDay() === 0 || new Date().getDay() === 6 ? 'Tak' : 'Nie' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Data",
+              "displayName": "Data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Godzina",
+              "displayName": "Godzina",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Plik",
+              "displayName": "Plik",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Typ",
+              "displayName": "Typ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PPV",
+              "displayName": "PPV",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cena",
+              "displayName": "Cena",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Caption",
+              "displayName": "Caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Audience",
+              "displayName": "Audience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Weekend",
+              "displayName": "Weekend",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "log-revenue-sheet-v2",
+      "name": "Log to Revenue Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        4696,
+        520
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "E73O5SYajf2go40V",
+          "name": "Google Sheets account"
+        }
+      }
     }
   ],
   "connections": {
@@ -1201,6 +1335,17 @@
         [
           {
             "node": "Update Media Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Success Email": {
+      "main": [
+        [
+          {
+            "node": "Log to Revenue Sheet",
             "type": "main",
             "index": 0
           }

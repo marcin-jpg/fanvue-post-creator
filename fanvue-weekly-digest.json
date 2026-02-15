@@ -1,0 +1,120 @@
+{
+  "name": "Fanvue Weekly Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [0, 320],
+      "id": "weekly-schedule",
+      "name": "Weekly Monday 9AM"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fanvue-weekly-digest",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 120],
+      "id": "webhook-digest",
+      "name": "Webhook Trigger",
+      "webhookId": "fanvue-weekly-digest-wh"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {"mode": "name", "value": "post_history"},
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [280, 320],
+      "id": "get-post-history",
+      "name": "Get Post History"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [500, 320],
+      "id": "get-media-catalog",
+      "name": "Get Media Catalog"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all post history items\nconst allPosts = $('Get Post History').all();\nconst allMedia = $('Get Media Catalog').all();\n\n// Calculate date range (last 7 days)\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\n// Filter posts from last 7 days\nconst weekPosts = allPosts.filter(p => {\n  const publishedAt = new Date(p.json.published_at);\n  return publishedAt >= weekAgo;\n});\n\n// Count remaining media\nconst remainingMedia = allMedia.filter(m => m.json.added_to_fanvue === false).length;\nconst totalMedia = allMedia.length;\n\n// Stats\nconst totalPosts = weekPosts.length;\nconst imagePosts = weekPosts.filter(p => p.json.media_type === 'image').length;\nconst videoPosts = weekPosts.filter(p => p.json.media_type === 'video').length;\nconst ppvPosts = weekPosts.filter(p => p.json.ppv_price > 0);\nconst ppvCount = ppvPosts.length;\nconst ppvRevenuePotential = ppvPosts.reduce((sum, p) => sum + (parseFloat(p.json.ppv_price) || 0), 0);\nconst aiCaptions = weekPosts.filter(p => p.json.caption_source === 'ai-live').length;\nconst preGenCaptions = weekPosts.filter(p => p.json.caption_source === 'pre-generated').length;\n\n// Posts per day breakdown\nconst dayNames = ['Nd', 'Pn', 'Wt', 'Sr', 'Cz', 'Pt', 'Sb'];\nconst postsByDay = {};\nfor (const p of weekPosts) {\n  const d = new Date(p.json.published_at);\n  const dayKey = `${dayNames[d.getDay()]} ${d.getDate()}.${(d.getMonth()+1).toString().padStart(2,'0')}`;\n  postsByDay[dayKey] = (postsByDay[dayKey] || 0) + 1;\n}\n\n// Build day breakdown HTML\nlet dayBreakdownHtml = '';\nfor (const [day, count] of Object.entries(postsByDay)) {\n  dayBreakdownHtml += `<tr><td style=\"padding: 6px 12px; border: 1px solid #ddd;\">${day}</td><td style=\"padding: 6px 12px; border: 1px solid #ddd; text-align: center;\">${count}</td></tr>`;\n}\n\n// Recent posts list (last 5)\nconst recentPosts = weekPosts\n  .sort((a, b) => new Date(b.json.published_at) - new Date(a.json.published_at))\n  .slice(0, 5);\n\nlet recentPostsHtml = '';\nfor (const p of recentPosts) {\n  const d = new Date(p.json.published_at);\n  const dateStr = d.toLocaleDateString('pl-PL');\n  const ppvLabel = p.json.ppv_price > 0 ? `PPV $${p.json.ppv_price}` : 'FREE';\n  const caption = (p.json.caption || '').substring(0, 80);\n  recentPostsHtml += `<tr><td style=\"padding: 6px; border: 1px solid #ddd; font-size: 12px;\">${dateStr}</td><td style=\"padding: 6px; border: 1px solid #ddd; font-size: 12px;\">${p.json.file_name || '-'}</td><td style=\"padding: 6px; border: 1px solid #ddd; font-size: 12px;\">${ppvLabel}</td><td style=\"padding: 6px; border: 1px solid #ddd; font-size: 12px;\">${caption}...</td></tr>`;\n}\n\n// Content warning\nconst contentWarning = remainingMedia < 10\n  ? `<div style=\"margin-top: 16px; padding: 12px; background: #ffcccc; border: 2px solid #cc0000; border-radius: 8px; text-align: center;\"><strong style=\"color: #cc0000;\">UWAGA: Pozostalo tylko ${remainingMedia} plikow! Dodaj wiecej contentu do Dropbox.</strong></div>`\n  : '';\n\n// Days until content runs out (at avg rate)\nconst avgPostsPerDay = totalPosts > 0 ? totalPosts / 7 : 2;\nconst daysUntilEmpty = avgPostsPerDay > 0 ? Math.floor(remainingMedia / avgPostsPerDay) : 999;\n\nreturn [{\n  json: {\n    totalPosts,\n    imagePosts,\n    videoPosts,\n    ppvCount,\n    ppvRevenuePotential: ppvRevenuePotential.toFixed(2),\n    aiCaptions,\n    preGenCaptions,\n    remainingMedia,\n    totalMedia,\n    daysUntilEmpty,\n    dayBreakdownHtml,\n    recentPostsHtml,\n    contentWarning,\n    weekStart: weekAgo.toLocaleDateString('pl-PL'),\n    weekEnd: now.toLocaleDateString('pl-PL')\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 320],
+      "id": "calculate-stats",
+      "name": "Calculate Weekly Stats"
+    },
+    {
+      "parameters": {
+        "sendTo": "marcinjarosz@icloud.com",
+        "subject": "=Fanvue Weekly Digest | {{ $json.weekStart }} - {{ $json.weekEnd }} | {{ $json.totalPosts }} posts",
+        "emailType": "html",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n<h2 style=\"color: #6c5ce7;\">Fanvue Weekly Digest</h2>\n<p style=\"color: #666;\">{{ $json.weekStart }} - {{ $json.weekEnd }}</p>\n\n<h3>Podsumowanie</h3>\n<table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Posty w tym tygodniu</strong></td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 20px;\"><strong>{{ $json.totalPosts }}</strong></td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">Zdjecia</td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{{ $json.imagePosts }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">Filmy</td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{{ $json.videoPosts }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">PPV posty</td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{{ $json.ppvCount }}</td></tr>\n<tr style=\"background: #f0f0f0;\"><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Potencjalny przychod PPV</strong></td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center; font-size: 18px;\"><strong>${{ $json.ppvRevenuePotential }}</strong></td></tr>\n</table>\n\n<h3>Captiony</h3>\n<table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">AI live (GPT-4o)</td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{{ $json.aiCaptions }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">Pre-generated</td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\">{{ $json.preGenCaptions }}</td></tr>\n</table>\n\n<h3>Posty wg dnia</h3>\n<table style=\"border-collapse: collapse; width: 100%;\">\n<tr style=\"background: #6c5ce7; color: white;\"><th style=\"padding: 6px 12px; border: 1px solid #ddd;\">Dzien</th><th style=\"padding: 6px 12px; border: 1px solid #ddd;\">Posty</th></tr>\n{{ $json.dayBreakdownHtml }}\n</table>\n\n<h3>Ostatnie posty</h3>\n<table style=\"border-collapse: collapse; width: 100%; font-size: 12px;\">\n<tr style=\"background: #ddd;\"><th style=\"padding: 6px;\">Data</th><th style=\"padding: 6px;\">Plik</th><th style=\"padding: 6px;\">Typ</th><th style=\"padding: 6px;\">Caption</th></tr>\n{{ $json.recentPostsHtml }}\n</table>\n\n<h3>Content Status</h3>\n<table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">Pozostale media</td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\"><strong>{{ $json.remainingMedia }}</strong> / {{ $json.totalMedia }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\">Dni do wyczerpania (szacunkowo)</td><td style=\"padding: 8px; border: 1px solid #ddd; text-align: center;\"><strong>{{ $json.daysUntilEmpty }}</strong> dni</td></tr>\n</table>\n\n{{ $json.contentWarning }}\n\n<p style=\"color: #999; font-size: 11px; margin-top: 20px;\">Wygenerowane automatycznie przez Fanvue Auto Post System</p>\n</div>",
+        "options": {}
+      },
+      "id": "send-digest-email",
+      "name": "Send Digest Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [940, 320],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "vegX3gKBXTfZVtRg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Fanvue Weekly Digest\n\nWysyla co poniedzialek o 9:00 email z podsumowaniem:\n- Ile postow w tym tygodniu\n- Podzial: zdjecia vs filmy\n- Potencjalny przychod PPV\n- Statystyki captionow AI vs pre-generated\n- Posty wg dnia tygodnia\n- Ostatnie 5 postow\n- Stan contentu + ostrzezenie gdy malo\n\nMozna tez wywolac reczne: POST /webhook/fanvue-weekly-digest"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "id": "sticky-digest-info",
+      "name": "Info"
+    }
+  ],
+  "connections": {
+    "Weekly Monday 9AM": {
+      "main": [[{"node": "Get Post History", "type": "main", "index": 0}]]
+    },
+    "Webhook Trigger": {
+      "main": [[{"node": "Get Post History", "type": "main", "index": 0}]]
+    },
+    "Get Post History": {
+      "main": [[{"node": "Get Media Catalog", "type": "main", "index": 0}]]
+    },
+    "Get Media Catalog": {
+      "main": [[{"node": "Calculate Weekly Stats", "type": "main", "index": 0}]]
+    },
+    "Calculate Weekly Stats": {
+      "main": [[{"node": "Send Digest Email", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}
