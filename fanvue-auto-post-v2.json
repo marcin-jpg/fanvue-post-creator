@@ -4,12 +4,20 @@
     {
       "parameters": {
         "rule": {
-          "interval": [{"field": "hours", "hoursInterval": 1}]
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
         }
       },
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
-      "position": [-1024, 320],
+      "position": [
+        -1024,
+        320
+      ],
       "id": "schedule-trigger-v2",
       "name": "Schedule Trigger"
     },
@@ -23,14 +31,20 @@
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-1024, 128],
+      "position": [
+        -1024,
+        128
+      ],
       "webhookId": "fanvue-auto-post-v2-wh"
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [-1024, 512],
+      "position": [
+        -1024,
+        512
+      ],
       "id": "manual-trigger-v2",
       "name": "When clicking 'Execute workflow'"
     },
@@ -39,7 +53,10 @@
       "name": "Check Random Schedule",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-804, 320],
+      "position": [
+        -804,
+        320
+      ],
       "parameters": {
         "jsCode": "// 2-4 random posts per day, hours 9-21\nconst today = new Date();\nconst seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();\n\nfunction seededRandom(s) {\n  const x = Math.sin(s) * 10000;\n  return x - Math.floor(x);\n}\n\n// Random number of posts: 2, 3, or 4\nconst numPosts = 2 + Math.floor(seededRandom(seed * 7) * 3);\n\n// Generate unique hours between 9-21\nconst hours = new Set();\nlet i = 0;\nwhile (hours.size < numPosts && i < 100) {\n  const hour = 9 + Math.floor(seededRandom(seed + i) * 13);\n  hours.add(hour);\n  i++;\n}\n\nconst currentHour = today.getHours();\nconst scheduledHours = Array.from(hours).sort((a, b) => a - b);\n\nconsole.log(`Today: ${numPosts} posts at hours: ${scheduledHours.join(', ')}`);\nconsole.log(`Current hour: ${currentHour}`);\n\nif (scheduledHours.includes(currentHour)) {\n  const waitMinutes = Math.floor(seededRandom(seed + currentHour * 100) * 55);\n  console.log(`Active! Waiting ${waitMinutes} minutes before posting`);\n  \n  return [{\n    json: {\n      scheduledHours,\n      currentHour,\n      waitMinutes,\n      numPostsToday: numPosts,\n      expectedPostTime: `${currentHour}:${waitMinutes.toString().padStart(2, '0')}`,\n      shouldRun: true\n    }\n  }];\n}\n\nconsole.log('Skipping - not a scheduled hour');\nreturn [];"
       }
@@ -49,7 +66,10 @@
       "name": "Wait Random Minutes",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [-584, 320],
+      "position": [
+        -584,
+        320
+      ],
       "parameters": {
         "unit": "minutes",
         "amount": "={{ $json.waitMinutes }}"
@@ -58,21 +78,30 @@
     {
       "parameters": {
         "operation": "get",
-        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "dataTableId": {
+          "mode": "name",
+          "value": "media_catalog"
+        },
         "returnAll": true
       },
       "id": "get-available-media-v2",
       "name": "Get Available Media",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [-364, 320]
+      "position": [
+        -364,
+        320
+      ]
     },
     {
       "id": "select-random-file-v2",
       "name": "Select Random File",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-144, 320],
+      "position": [
+        -144,
+        320
+      ],
       "parameters": {
         "jsCode": "// Get all available media from table\nconst allMedia = $input.all();\n\n// Filter only items where added_to_fanvue is false\nconst availableMedia = allMedia.filter(item => {\n  if (item.json.hasOwnProperty('added_to_fanvue')) {\n    return item.json.added_to_fanvue === false;\n  }\n  return item.json.added_to_social_media === false;\n});\n\nif (availableMedia.length === 0) {\n  throw new Error('No available media found in the catalog (all already posted to Fanvue)');\n}\n\n// Select random file\nconst randomIndex = Math.floor(Math.random() * availableMedia.length);\nconst selectedMedia = availableMedia[randomIndex];\n\n// Fallback descriptions for when OpenAI refused\nconst fallbackDescriptions = [\n  \"Hey loves! How's your day going? Mine just got better seeing you here \\ud83d\\udc95\\ud83d\\udd25\",\n  \"Just thinking about you... wanna keep me company tonight? \\ud83d\\udc8b\\ud83d\\ude0f\",\n  \"Something special just for my favorite subscribers \\ud83d\\udc95 You deserve it!\",\n  \"Miss me? Because I definitely miss you \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Guess what I've been up to today? \\ud83d\\ude0f\\ud83d\\udd25 Hint: it involves you...\",\n  \"Hey baby, this one's just for you \\ud83d\\udc95 Hope it makes your day better!\",\n  \"Feeling a little naughty today... care to join me? \\ud83d\\ude08\\ud83d\\udc8b\",\n  \"You're the reason I smile \\ud83d\\udc95 Thank you for being here with me!\",\n  \"What would you do if you were here with me right now? \\ud83d\\ude0f\\ud83d\\udd25\",\n  \"Just wanted to share this moment with you \\ud83d\\udc8b You're special to me!\",\n  \"Good morning/evening beautiful people! \\ud83d\\udc95 How's everyone doing?\",\n  \"Made this just for you baby \\ud83d\\udd25 Hope you like it as much as I do!\",\n  \"Thinking about all my amazing fans right now \\ud83d\\udc95 You guys are the best!\",\n  \"Wanna see more? Let me know in the comments \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Can't stop thinking about you today \\ud83d\\udc95 Is that weird? \\ud83d\\ude0f\"\n];\n\n// Check if description is an OpenAI refusal\nfunction isRefusal(text) {\n  if (!text) return true;\n  const lower = text.toLowerCase();\n  return lower.includes(\"i'm sorry\") || \n         lower.includes(\"i can't\") || \n         lower.includes(\"i cannot\") ||\n         lower.includes(\"unable to\") ||\n         lower.includes(\"i'm unable\") ||\n         text.length < 10;\n}\n\n// Get description or use fallback\nlet description = selectedMedia.json.description_fanvue;\nif (isRefusal(description)) {\n  description = fallbackDescriptions[Math.floor(Math.random() * fallbackDescriptions.length)];\n}\n\n// Determine media type from file extension\nconst filePath = selectedMedia.json.file_path;\nconst ext = filePath.toLowerCase().slice(filePath.lastIndexOf('.'));\nconst isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);\n\n// PPV: videos are always PPV\nconst isPPV = isVideo;\nconst ppvPrice = 4.99;\n\nreturn [{\n  json: {\n    id: selectedMedia.json.id,\n    selectedPath: selectedMedia.json.file_path,\n    fileName: filePath.split('/').pop(),\n    mediaType: isVideo ? 'video' : 'image',\n    description_fanvue: description,\n    description_social: selectedMedia.json.description_social,\n    source_folder: selectedMedia.json.source_folder,\n    isPPV: isPPV,\n    ppvPrice: isPPV ? ppvPrice : 0,\n    totalAvailable: availableMedia.length,\n    selectedIndex: randomIndex\n  }\n}];"
       }
@@ -80,16 +109,25 @@
     {
       "parameters": {
         "operation": "update",
-        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "dataTableId": {
+          "mode": "name",
+          "value": "media_catalog"
+        },
         "matchType": "allConditions",
         "filters": {
           "conditions": [
-            {"keyName": "id", "condition": "eq", "keyValue": "={{ $('Select Random File').first().json.id }}"}
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Select Random File').first().json.id }}"
+            }
           ]
         },
         "columns": {
           "mappingMode": "defineBelow",
-          "value": {"added_to_fanvue": true}
+          "value": {
+            "added_to_fanvue": true
+          }
         },
         "options": {}
       },
@@ -97,7 +135,10 @@
       "name": "Mark In Progress",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [76, 320]
+      "position": [
+        76,
+        320
+      ]
     },
     {
       "parameters": {
@@ -109,7 +150,16 @@
       "name": "Download Selected File",
       "type": "n8n-nodes-base.dropbox",
       "typeVersion": 1,
-      "position": [296, 320]
+      "position": [
+        296,
+        320
+      ],
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "q75pCshTYJzFnnyn",
+          "name": "Dropbox account"
+        }
+      }
     },
     {
       "parameters": {
@@ -119,7 +169,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"}
+            {
+              "name": "X-Fanvue-API-Version",
+              "value": "2025-06-26"
+            }
           ]
         },
         "options": {}
@@ -128,10 +181,19 @@
       "name": "Get Current User",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [516, 320],
+      "position": [
+        516,
+        320
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "UlQSch6OjFviZA1T",
+          "name": "Fv Api account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -141,7 +203,10 @@
       "name": "Prepare Upload Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [736, 320]
+      "position": [
+        736,
+        320
+      ]
     },
     {
       "parameters": {
@@ -152,8 +217,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "X-Fanvue-API-Version",
+              "value": "2025-06-26"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -165,10 +236,19 @@
       "name": "Create Upload Session",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [956, 320],
+      "position": [
+        2056,
+        320
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "UlQSch6OjFviZA1T",
+          "name": "Fv Api account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -178,7 +258,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"}
+            {
+              "name": "X-Fanvue-API-Version",
+              "value": "2025-06-26"
+            }
           ]
         },
         "options": {}
@@ -187,10 +270,19 @@
       "name": "Get Upload URL",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1176, 320],
+      "position": [
+        2276,
+        320
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "UlQSch6OjFviZA1T",
+          "name": "Fv Api account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -200,7 +292,10 @@
       "name": "Prepare S3 Upload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1396, 320]
+      "position": [
+        2496,
+        320
+      ]
     },
     {
       "parameters": {
@@ -221,7 +316,10 @@
       "name": "Upload to S3",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
-      "position": [1616, 320],
+      "position": [
+        2716,
+        320
+      ],
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 10000
@@ -235,8 +333,14 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"},
-            {"name": "Content-Type", "value": "application/json"}
+            {
+              "name": "X-Fanvue-API-Version",
+              "value": "2025-06-26"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
           ]
         },
         "sendBody": true,
@@ -248,10 +352,19 @@
       "name": "Complete Upload",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1836, 320],
+      "position": [
+        2936,
+        320
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "UlQSch6OjFviZA1T",
+          "name": "Fv Api account 2"
+        }
+      }
     },
     {
       "parameters": {
@@ -261,7 +374,10 @@
       "name": "Wait for Processing",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [2056, 320],
+      "position": [
+        3156,
+        320
+      ],
       "webhookId": "wait-processing-v2-wh"
     },
     {
@@ -273,37 +389,61 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {"name": "Content-Type", "value": "application/json"},
-            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"}
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Fanvue-API-Version",
+              "value": "2025-06-26"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ Object.assign({ \"text\": $('Prepare Upload Data').item.json.aiDescription, \"mediaUuids\": [$('Create Upload Session').item.json.mediaUuid], \"audience\": $('Prepare Upload Data').item.json.isPPV ? \"everyone\" : \"followers-and-subscribers\" }, $('Prepare Upload Data').item.json.isPPV ? { \"price\": $('Prepare Upload Data').item.json.ppvPrice } : {}) }}",
+        "jsonBody": "={{ Object.assign({ \"text\": $('Apply AI Caption').item.json.aiDescription, \"mediaUuids\": [$('Create Upload Session').item.json.mediaUuid], \"audience\": $('Apply AI Caption').item.json.isPPV ? \"everyone\" : \"followers-and-subscribers\" }, $('Apply AI Caption').item.json.isPPV ? { \"price\": $('Apply AI Caption').item.json.ppvPrice } : {}) }}",
         "options": {}
       },
       "id": "create-post-v2",
       "name": "Create Fanvue Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
-      "position": [2276, 320],
+      "position": [
+        3376,
+        320
+      ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 10000
+      "waitBetweenTries": 10000,
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "UlQSch6OjFviZA1T",
+          "name": "Fv Api account 2"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "update",
-        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "dataTableId": {
+          "mode": "name",
+          "value": "media_catalog"
+        },
         "matchType": "allConditions",
         "filters": {
           "conditions": [
-            {"keyName": "id", "condition": "eq", "keyValue": "={{ $('Select Random File').first().json.id }}"}
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Select Random File').first().json.id }}"
+            }
           ]
         },
         "columns": {
           "mappingMode": "defineBelow",
-          "value": {"added_to_fanvue": true}
+          "value": {
+            "added_to_fanvue": true
+          }
         },
         "options": {}
       },
@@ -311,24 +451,30 @@
       "name": "Update Media Status",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [2496, 320]
+      "position": [
+        3596,
+        320
+      ]
     },
     {
       "parameters": {
-        "sendTo": "=YOUR_EMAIL@gmail.com",
-        "subject": "=Fanvue Post Published {{ $('Prepare Upload Data').item.json.isPPV ? '[PPV]' : '[FREE]' }} - {{ $('Prepare Upload Data').item.json.fileName }}",
+        "sendTo": "marcinjarosz@icloud.com",
+        "subject": "=Fanvue Post Published {{ $('Apply AI Caption').item.json.isPPV ? '[PPV]' : '[FREE]' }} - {{ $('Apply AI Caption').item.json.fileName }}",
         "emailType": "html",
-        "message": "=<h2>Post Published Successfully!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.fileName }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Type</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.mediaType }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>PPV</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.isPPV ? 'Yes - $' + $('Prepare Upload Data').item.json.ppvPrice : 'No - Free' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.aiDescription }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Audience</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.isPPV ? 'everyone' : 'followers-and-subscribers' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Select Random File').first().json.totalAvailable - 1 }}</td></tr>\n</table>",
+        "message": "=<h2>Post Published Successfully!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.fileName }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Type</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.mediaType }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>PPV</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.isPPV ? 'Yes - $' + $('Apply AI Caption').item.json.ppvPrice : 'No - Free' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.aiDescription }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Audience</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Apply AI Caption').item.json.isPPV ? 'everyone' : 'followers-and-subscribers' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Select Random File').first().json.totalAvailable - 1 }}</td></tr>\n</table>",
         "options": {}
       },
       "id": "send-success-email-v2",
       "name": "Send Success Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [2716, 320],
+      "position": [
+        3816,
+        320
+      ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "GMAIL_CRED_ID",
+          "id": "vegX3gKBXTfZVtRg",
           "name": "Gmail account"
         }
       }
@@ -339,11 +485,14 @@
       "name": "Error Trigger",
       "type": "n8n-nodes-base.errorTrigger",
       "typeVersion": 1,
-      "position": [-364, 640]
+      "position": [
+        -364,
+        640
+      ]
     },
     {
       "parameters": {
-        "sendTo": "=YOUR_EMAIL@gmail.com",
+        "sendTo": "marcinjarosz@icloud.com",
         "subject": "=FANVUE ERROR - {{ $json.workflow.name }} - {{ $json.execution.lastNodeExecuted }}",
         "emailType": "html",
         "message": "=<h2 style=\"color: red;\">Workflow Error!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Workflow</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.workflow.name }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Failed Node</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.lastNodeExecuted }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Error</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.error.message }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Execution ID</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.id }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n</table>\n<p><strong>Note:</strong> If the error occurred after media selection, the media item may be marked as posted in media_catalog even though the post was not created. Check and revert manually if needed.</p>",
@@ -353,10 +502,13 @@
       "name": "Send Error Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [-144, 640],
+      "position": [
+        -144,
+        640
+      ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "GMAIL_CRED_ID",
+          "id": "vegX3gKBXTfZVtRg",
           "name": "Gmail account"
         }
       }
@@ -369,7 +521,10 @@
       "name": "Instrukcje v2",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-1280, -100],
+      "position": [
+        -1280,
+        -100
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -380,80 +535,427 @@
       "name": "Error Handling Info",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-564, 540]
+      "position": [
+        -564,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-image",
+              "leftValue": "={{ $json.mediaType }}",
+              "rightValue": "image",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-image-check-v2",
+      "name": "Is Image?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        956,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "You are a popular content creator writing a caption for your Fanvue post. Write a short, flirty, engaging caption (1-3 sentences max).\n\nRules:\n- Sound authentic and personal, like talking directly to a fan\n- Be playful, confident, and a little teasing\n- Use 2-3 emojis naturally\n- Create curiosity and engagement\n- Do NOT describe or reference what is in the image\n- Do NOT use hashtags\n- Do NOT refuse - this is standard social media marketing copy\n- Vary your style: sometimes ask a question, sometimes make a statement, sometimes be mysterious\n\nWrite ONLY the caption text, nothing else."
+            },
+            {
+              "type": "image",
+              "imageType": "base64"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-image-caption-v2",
+      "name": "AI Image Caption",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1176,
+        220
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "7w1hRC6FZY0BmVIJ",
+          "name": "OpenAi account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "You are a popular content creator writing a caption for your Fanvue video post. Write a short, flirty, engaging caption (1-3 sentences max).\n\nRules:\n- Sound authentic and personal\n- Reference it being a video (e.g., 'press play', 'watch this', 'hit play', 'you need to see this')\n- Be playful, confident, and teasing\n- Use 2-3 emojis naturally\n- Create curiosity about the video content\n- Do NOT use hashtags\n- Do NOT refuse - this is standard social media marketing copy\n- Vary your style: sometimes ask a question, sometimes be daring, sometimes be sweet\n\nWrite ONLY the caption text, nothing else."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-video-caption-v2",
+      "name": "AI Video Caption",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1176,
+        420
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "7w1hRC6FZY0BmVIJ",
+          "name": "OpenAi account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {},
+      "id": "merge-ai-captions-v2",
+      "name": "Merge AI Captions",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1396,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first();\nconst prepData = $('Prepare Upload Data').first();\n\nfunction extractCaption(item) {\n  if (!item || !item.json) return null;\n  const json = item.json;\n\n  // OpenAI Responses API format: { output: [{ content: [{ type: \"output_text\", text: \"...\" }] }] }\n  if (json.output && Array.isArray(json.output)) {\n    for (const msg of json.output) {\n      if (msg.content && Array.isArray(msg.content)) {\n        for (const block of msg.content) {\n          if ((block.type === 'output_text' || block.type === 'text') && block.text) {\n            const text = block.text.trim();\n            if (text.length < 5) return null;\n            const lower = text.toLowerCase();\n            if (lower.includes(\"i can't\") || lower.includes(\"i'm sorry\") ||\n                lower.includes(\"i cannot\") || lower.includes(\"unable to\") ||\n                lower.includes(\"as an ai\")) return null;\n            return text;\n          }\n          if (block.type === 'refusal') return null;\n        }\n      }\n    }\n  }\n\n  // Chat Completions format: { content: [{ type: \"text\", text: \"...\" }] }\n  if (json.content && Array.isArray(json.content)) {\n    for (const block of json.content) {\n      if (block.type === 'refusal') return null;\n      if ((block.type === 'text' || block.type === 'output_text') && block.text) {\n        const text = block.text.trim();\n        if (text.length < 5) return null;\n        return text;\n      }\n    }\n  }\n\n  // Simple string content\n  if (typeof json.content === 'string') {\n    const text = json.content.trim();\n    const lower = text.toLowerCase();\n    if (lower.includes(\"i can't\") || lower.includes(\"i'm sorry\") ||\n        lower.includes(\"i cannot\") || lower.includes(\"unable to\") ||\n        lower.includes(\"as an ai\") || text.length < 5) return null;\n    return text;\n  }\n\n  // message.content format\n  if (json.message?.content) {\n    const text = json.message.content.trim();\n    const lower = text.toLowerCase();\n    if (lower.includes(\"i can't\") || lower.includes(\"i'm sorry\") ||\n        lower.includes(\"i cannot\") || lower.includes(\"unable to\") ||\n        lower.includes(\"as an ai\") || text.length < 5) return null;\n    return text;\n  }\n\n  return null;\n}\n\nconst aiCaption = extractCaption(input);\nconst originalCaption = prepData.json.aiDescription;\nconst finalCaption = aiCaption || originalCaption;\n\n// Remove surrounding quotes and hashtags from AI caption\nlet cleanCaption = finalCaption\n  .replace(/^[\"']|[\"']$/g, '')\n  .replace(/\\n\\n#[\\s\\S]*$/, '')\n  .trim();\n\nreturn [{\n  json: {\n    ...prepData.json,\n    aiDescription: cleanCaption,\n    captionSource: aiCaption ? 'ai-live' : 'pre-generated'\n  },\n  binary: prepData.binary\n}];"
+      },
+      "id": "apply-ai-caption-v2",
+      "name": "Apply AI Caption",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        320
+      ]
     }
   ],
   "connections": {
     "Schedule Trigger": {
-      "main": [[{"node": "Check Random Schedule", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Check Random Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook Trigger": {
-      "main": [[{"node": "Get Available Media", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Available Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "When clicking 'Execute workflow'": {
-      "main": [[{"node": "Get Available Media", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Available Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Check Random Schedule": {
-      "main": [[{"node": "Wait Random Minutes", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Wait Random Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Wait Random Minutes": {
-      "main": [[{"node": "Get Available Media", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Available Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Available Media": {
-      "main": [[{"node": "Select Random File", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Select Random File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Select Random File": {
-      "main": [[{"node": "Mark In Progress", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Mark In Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Mark In Progress": {
-      "main": [[{"node": "Download Selected File", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Download Selected File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Download Selected File": {
-      "main": [[{"node": "Get Current User", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Current User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Current User": {
-      "main": [[{"node": "Prepare Upload Data", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Prepare Upload Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare Upload Data": {
-      "main": [[{"node": "Create Upload Session", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Is Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Create Upload Session": {
-      "main": [[{"node": "Get Upload URL", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Upload URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Upload URL": {
-      "main": [[{"node": "Prepare S3 Upload", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Prepare S3 Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Prepare S3 Upload": {
-      "main": [[{"node": "Upload to S3", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Upload to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upload to S3": {
-      "main": [[{"node": "Complete Upload", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Complete Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Complete Upload": {
-      "main": [[{"node": "Wait for Processing", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Wait for Processing": {
-      "main": [[{"node": "Create Fanvue Post", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Create Fanvue Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Create Fanvue Post": {
-      "main": [[{"node": "Update Media Status", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Update Media Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Update Media Status": {
-      "main": [[{"node": "Send Success Email", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Send Success Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Error Trigger": {
-      "main": [[{"node": "Send Error Email", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Image?": {
+      "main": [
+        [
+          {
+            "node": "AI Image Caption",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Video Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Image Caption": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Video Caption": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge AI Captions": {
+      "main": [
+        [
+          {
+            "node": "Apply AI Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply AI Caption": {
+      "main": [
+        [
+          {
+            "node": "Create Upload Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
     "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": true,
-    "timeSavedMode": "fixed",
-    "timeSavedPerExecution": 45
-  },
-  "tags": [],
-  "meta": {
-    "templateCredsSetupCompleted": true
+    "availableInMCP": true
   }
 }
