@@ -14,7 +14,10 @@
       },
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
-      "position": [0, 320],
+      "position": [
+        0,
+        320
+      ],
       "id": "weekly-schedule",
       "name": "Weekly Monday 9AM"
     },
@@ -26,7 +29,10 @@
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 120],
+      "position": [
+        0,
+        120
+      ],
       "id": "webhook-digest",
       "name": "Webhook Trigger",
       "webhookId": "fanvue-weekly-digest-wh"
@@ -34,12 +40,18 @@
     {
       "parameters": {
         "operation": "get",
-        "dataTableId": {"mode": "name", "value": "post_history"},
+        "dataTableId": {
+          "mode": "name",
+          "value": "post_history"
+        },
         "returnAll": true
       },
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [280, 320],
+      "position": [
+        280,
+        320
+      ],
       "id": "get-post-history",
       "name": "Get Post History",
       "alwaysOutputData": true
@@ -47,12 +59,18 @@
     {
       "parameters": {
         "operation": "get",
-        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "dataTableId": {
+          "mode": "name",
+          "value": "media_catalog"
+        },
         "returnAll": true
       },
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [500, 320],
+      "position": [
+        500,
+        320
+      ],
       "id": "get-media-catalog",
       "name": "Get Media Catalog",
       "alwaysOutputData": true
@@ -63,7 +81,10 @@
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 320],
+      "position": [
+        720,
+        320
+      ],
       "id": "calculate-stats",
       "name": "Calculate Weekly Stats"
     },
@@ -79,7 +100,10 @@
       "name": "Send Digest Email",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [940, 320],
+      "position": [
+        940,
+        320
+      ],
       "credentials": {
         "gmailOAuth2": {
           "id": "vegX3gKBXTfZVtRg",
@@ -93,30 +117,74 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-200, 0],
+      "position": [
+        -200,
+        0
+      ],
       "id": "sticky-digest-info",
       "name": "Info"
     }
   ],
   "connections": {
     "Weekly Monday 9AM": {
-      "main": [[{"node": "Get Post History", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Post History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook Trigger": {
-      "main": [[{"node": "Get Post History", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Post History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Post History": {
-      "main": [[{"node": "Get Media Catalog", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Media Catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Media Catalog": {
-      "main": [[{"node": "Calculate Weekly Stats", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Calculate Weekly Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Calculate Weekly Stats": {
-      "main": [[{"node": "Send Digest Email", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Send Digest Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "availableInMCP": true
+    "availableInMCP": true,
+    "callerPolicy": "workflowsFromSameOwner"
   }
 }

@@ -751,7 +751,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Dodane": "Doda\u0102\u201e\u00e2\u20ac\u02c7",
+            "Dodane": "DodaÄ‚â€žĂ˘â‚¬Ë‡",
             "Sciezka": "={{ $('Select Random File').first().json.selectedPath }}",
             "Nazwa Zdjecia": "={{ $('Select Random File').first().json.fileName }}",
             "Opis": "={{ $('Select Random File').first().json.description_social || $('Apply AI Caption').first().json.aiDescription }}"
