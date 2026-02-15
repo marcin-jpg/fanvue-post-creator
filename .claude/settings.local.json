@@ -9,7 +9,11 @@
       "Bash(python:*)",
       "mcp__claude_ai_n8n__get_workflow_details",
       "mcp__claude_ai_n8n__search_workflows",
-      "mcp__claude_ai_n8n__execute_workflow"
+      "mcp__claude_ai_n8n__execute_workflow",
+      "Bash(cmd //c \"start https://n8.srv1212151.hstgr.cloud/workflow/EFqAicul5W6swAEM\")",
+      "Bash(python3:*)",
+      "WebFetch(domain:api.fanvue.com)",
+      "WebFetch(domain:developers.fanvue.com)"
     ]
   }
 }
