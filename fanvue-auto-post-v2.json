@@ -1,0 +1,459 @@
+{
+  "name": "Fanvue Auto Post v2 - Enhanced",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 1}]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [-1024, 320],
+      "id": "schedule-trigger-v2",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fanvue-auto-post-v2",
+        "options": {}
+      },
+      "id": "webhook-trigger-v2",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1024, 128],
+      "webhookId": "fanvue-auto-post-v2-wh"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-1024, 512],
+      "id": "manual-trigger-v2",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "id": "check-random-schedule-v2",
+      "name": "Check Random Schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-804, 320],
+      "parameters": {
+        "jsCode": "// 2-4 random posts per day, hours 9-21\nconst today = new Date();\nconst seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();\n\nfunction seededRandom(s) {\n  const x = Math.sin(s) * 10000;\n  return x - Math.floor(x);\n}\n\n// Random number of posts: 2, 3, or 4\nconst numPosts = 2 + Math.floor(seededRandom(seed * 7) * 3);\n\n// Generate unique hours between 9-21\nconst hours = new Set();\nlet i = 0;\nwhile (hours.size < numPosts && i < 100) {\n  const hour = 9 + Math.floor(seededRandom(seed + i) * 13);\n  hours.add(hour);\n  i++;\n}\n\nconst currentHour = today.getHours();\nconst scheduledHours = Array.from(hours).sort((a, b) => a - b);\n\nconsole.log(`Today: ${numPosts} posts at hours: ${scheduledHours.join(', ')}`);\nconsole.log(`Current hour: ${currentHour}`);\n\nif (scheduledHours.includes(currentHour)) {\n  const waitMinutes = Math.floor(seededRandom(seed + currentHour * 100) * 55);\n  console.log(`Active! Waiting ${waitMinutes} minutes before posting`);\n  \n  return [{\n    json: {\n      scheduledHours,\n      currentHour,\n      waitMinutes,\n      numPostsToday: numPosts,\n      expectedPostTime: `${currentHour}:${waitMinutes.toString().padStart(2, '0')}`,\n      shouldRun: true\n    }\n  }];\n}\n\nconsole.log('Skipping - not a scheduled hour');\nreturn [];"
+      }
+    },
+    {
+      "id": "wait-random-minutes-v2",
+      "name": "Wait Random Minutes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [-584, 320],
+      "parameters": {
+        "unit": "minutes",
+        "amount": "={{ $json.waitMinutes }}"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "returnAll": true
+      },
+      "id": "get-available-media-v2",
+      "name": "Get Available Media",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [-364, 320]
+    },
+    {
+      "id": "select-random-file-v2",
+      "name": "Select Random File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-144, 320],
+      "parameters": {
+        "jsCode": "// Get all available media from table\nconst allMedia = $input.all();\n\n// Filter only items where added_to_fanvue is false\nconst availableMedia = allMedia.filter(item => {\n  if (item.json.hasOwnProperty('added_to_fanvue')) {\n    return item.json.added_to_fanvue === false;\n  }\n  return item.json.added_to_social_media === false;\n});\n\nif (availableMedia.length === 0) {\n  throw new Error('No available media found in the catalog (all already posted to Fanvue)');\n}\n\n// Select random file\nconst randomIndex = Math.floor(Math.random() * availableMedia.length);\nconst selectedMedia = availableMedia[randomIndex];\n\n// Fallback descriptions for when OpenAI refused\nconst fallbackDescriptions = [\n  \"Hey loves! How's your day going? Mine just got better seeing you here \\ud83d\\udc95\\ud83d\\udd25\",\n  \"Just thinking about you... wanna keep me company tonight? \\ud83d\\udc8b\\ud83d\\ude0f\",\n  \"Something special just for my favorite subscribers \\ud83d\\udc95 You deserve it!\",\n  \"Miss me? Because I definitely miss you \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Guess what I've been up to today? \\ud83d\\ude0f\\ud83d\\udd25 Hint: it involves you...\",\n  \"Hey baby, this one's just for you \\ud83d\\udc95 Hope it makes your day better!\",\n  \"Feeling a little naughty today... care to join me? \\ud83d\\ude08\\ud83d\\udc8b\",\n  \"You're the reason I smile \\ud83d\\udc95 Thank you for being here with me!\",\n  \"What would you do if you were here with me right now? \\ud83d\\ude0f\\ud83d\\udd25\",\n  \"Just wanted to share this moment with you \\ud83d\\udc8b You're special to me!\",\n  \"Good morning/evening beautiful people! \\ud83d\\udc95 How's everyone doing?\",\n  \"Made this just for you baby \\ud83d\\udd25 Hope you like it as much as I do!\",\n  \"Thinking about all my amazing fans right now \\ud83d\\udc95 You guys are the best!\",\n  \"Wanna see more? Let me know in the comments \\ud83d\\ude18\\ud83d\\udc8b\",\n  \"Can't stop thinking about you today \\ud83d\\udc95 Is that weird? \\ud83d\\ude0f\"\n];\n\n// Check if description is an OpenAI refusal\nfunction isRefusal(text) {\n  if (!text) return true;\n  const lower = text.toLowerCase();\n  return lower.includes(\"i'm sorry\") || \n         lower.includes(\"i can't\") || \n         lower.includes(\"i cannot\") ||\n         lower.includes(\"unable to\") ||\n         lower.includes(\"i'm unable\") ||\n         text.length < 10;\n}\n\n// Get description or use fallback\nlet description = selectedMedia.json.description_fanvue;\nif (isRefusal(description)) {\n  description = fallbackDescriptions[Math.floor(Math.random() * fallbackDescriptions.length)];\n}\n\n// Determine media type from file extension\nconst filePath = selectedMedia.json.file_path;\nconst ext = filePath.toLowerCase().slice(filePath.lastIndexOf('.'));\nconst isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);\n\n// PPV: videos are always PPV\nconst isPPV = isVideo;\nconst ppvPrice = 4.99;\n\nreturn [{\n  json: {\n    id: selectedMedia.json.id,\n    selectedPath: selectedMedia.json.file_path,\n    fileName: filePath.split('/').pop(),\n    mediaType: isVideo ? 'video' : 'image',\n    description_fanvue: description,\n    description_social: selectedMedia.json.description_social,\n    source_folder: selectedMedia.json.source_folder,\n    isPPV: isPPV,\n    ppvPrice: isPPV ? ppvPrice : 0,\n    totalAvailable: availableMedia.length,\n    selectedIndex: randomIndex\n  }\n}];"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {"keyName": "id", "condition": "eq", "keyValue": "={{ $('Select Random File').first().json.id }}"}
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {"added_to_fanvue": true}
+        },
+        "options": {}
+      },
+      "id": "mark-in-progress-v2",
+      "name": "Mark In Progress",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [76, 320]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "download",
+        "path": "={{ $('Select Random File').first().json.selectedPath }}"
+      },
+      "id": "dropbox-download-v2",
+      "name": "Download Selected File",
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [296, 320]
+    },
+    {
+      "parameters": {
+        "url": "https://api.fanvue.com/users/me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "fvApiOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "fanvue-user-v2",
+      "name": "Get Current User",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [516, 320],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentUser = $input.first().json;\nconst selectedFileData = $('Select Random File').first().json;\nconst downloadedFile = $('Download Selected File').first();\n\n// Validate user is a creator\nif (!currentUser.isCreator) {\n  throw new Error('This account is not a creator account');\n}\n\nif (!currentUser.uuid) {\n  throw new Error('Could not get user UUID');\n}\n\n// Use description_fanvue from the media catalog table\nconst description = selectedFileData.description_fanvue || 'Check out my new post! \\ud83d\\udc8b\\ud83d\\udd25';\n\nreturn [{\n  json: {\n    creatorUuid: currentUser.uuid,\n    aiDescription: description.trim(),\n    fileName: selectedFileData.fileName,\n    mediaType: selectedFileData.mediaType,\n    mediaId: selectedFileData.id,\n    isPPV: selectedFileData.isPPV,\n    ppvPrice: selectedFileData.ppvPrice\n  },\n  binary: downloadedFile.binary\n}];"
+      },
+      "id": "prepare-upload-v2",
+      "name": "Prepare Upload Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [736, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.fanvue.com/media/uploads",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "fvApiOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"},
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"name\": $json.fileName, \"filename\": $json.fileName, \"mediaType\": $json.mediaType } }}",
+        "options": {}
+      },
+      "id": "create-upload-session-v2",
+      "name": "Create Upload Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [956, 320],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "=https://api.fanvue.com/media/uploads/{{ $json.uploadId }}/parts/1/url",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "fvApiOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-upload-url-v2",
+      "name": "Get Upload URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1176, 320],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get URL from previous node\nconst urlResponse = $input.first().json;\n\nlet uploadUrl;\nif (typeof urlResponse === 'string') {\n  uploadUrl = urlResponse;\n} else if (urlResponse.data) {\n  uploadUrl = urlResponse.data;\n} else {\n  uploadUrl = JSON.stringify(urlResponse);\n}\n\n// Get binary data from Prepare Upload Data node\nconst binaryData = $('Prepare Upload Data').first().binary;\n\n// Get upload session info for later use\nconst uploadSession = $('Create Upload Session').first().json;\n\nreturn [{\n  json: {\n    url: uploadUrl,\n    mediaUuid: uploadSession.mediaUuid,\n    uploadId: uploadSession.uploadId\n  },\n  binary: binaryData\n}];"
+      },
+      "id": "prepare-s3-upload-v2",
+      "name": "Prepare S3 Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1396, 320]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "upload-to-s3-v2",
+      "name": "Upload to S3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [1616, 320],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.fanvue.com/media/uploads/{{ $('Create Upload Session').item.json.uploadId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "fvApiOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"},
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"parts\": [{\"ETag\": $json.headers.etag, \"PartNumber\": 1}] } }}",
+        "options": {}
+      },
+      "id": "complete-upload-v2",
+      "name": "Complete Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1836, 320],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "amount": 60
+      },
+      "id": "wait-processing-v2",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2056, 320],
+      "webhookId": "wait-processing-v2-wh"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.fanvue.com/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "fvApiOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"},
+            {"name": "X-Fanvue-API-Version", "value": "2025-06-26"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ Object.assign({ \"text\": $('Prepare Upload Data').item.json.aiDescription, \"mediaUuids\": [$('Create Upload Session').item.json.mediaUuid], \"audience\": $('Prepare Upload Data').item.json.isPPV ? \"everyone\" : \"followers-and-subscribers\" }, $('Prepare Upload Data').item.json.isPPV ? { \"price\": $('Prepare Upload Data').item.json.ppvPrice } : {}) }}",
+        "options": {}
+      },
+      "id": "create-post-v2",
+      "name": "Create Fanvue Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [2276, 320],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 10000
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {"mode": "name", "value": "media_catalog"},
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {"keyName": "id", "condition": "eq", "keyValue": "={{ $('Select Random File').first().json.id }}"}
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {"added_to_fanvue": true}
+        },
+        "options": {}
+      },
+      "id": "update-media-status-v2",
+      "name": "Update Media Status",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [2496, 320]
+    },
+    {
+      "parameters": {
+        "sendTo": "=YOUR_EMAIL@gmail.com",
+        "subject": "=Fanvue Post Published {{ $('Prepare Upload Data').item.json.isPPV ? '[PPV]' : '[FREE]' }} - {{ $('Prepare Upload Data').item.json.fileName }}",
+        "emailType": "html",
+        "message": "=<h2>Post Published Successfully!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.fileName }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Type</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.mediaType }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>PPV</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.isPPV ? 'Yes - $' + $('Prepare Upload Data').item.json.ppvPrice : 'No - Free' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.aiDescription }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Audience</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Upload Data').item.json.isPPV ? 'everyone' : 'followers-and-subscribers' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Select Random File').first().json.totalAvailable - 1 }}</td></tr>\n</table>",
+        "options": {}
+      },
+      "id": "send-success-email-v2",
+      "name": "Send Success Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [2716, 320],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CRED_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-v2",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-364, 640]
+    },
+    {
+      "parameters": {
+        "sendTo": "=YOUR_EMAIL@gmail.com",
+        "subject": "=FANVUE ERROR - {{ $json.workflow.name }} - {{ $json.execution.lastNodeExecuted }}",
+        "emailType": "html",
+        "message": "=<h2 style=\"color: red;\">Workflow Error!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Workflow</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.workflow.name }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Failed Node</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.lastNodeExecuted }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Error</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.error.message }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Execution ID</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.id }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n</table>\n<p><strong>Note:</strong> If the error occurred after media selection, the media item may be marked as posted in media_catalog even though the post was not created. Check and revert manually if needed.</p>",
+        "options": {}
+      },
+      "id": "send-error-email-v2",
+      "name": "Send Error Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [-144, 640],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CRED_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Fanvue Auto Post v2 - Enhanced\n\n### Co nowego w v2:\n1. **Error handling** - retry na HTTP nodach + email o bledach\n2. **Powiadomienia Gmail** - email po kazdym poscie\n3. **Ochrona duplikatow** - media oznaczane natychmiast po wyborze\n4. **Schedule 2-4 posty/dzien** - losowa liczba, godziny 9-21\n5. **PPV dla wideo** - filmy automatycznie jako PPV ($4.99)\n\n### KONFIGURACJA (zrob przed aktywacja!):\n1. Ustaw credentials Gmail OAuth2 w obu nodach email\n2. Zmien YOUR_EMAIL@gmail.com na swoj adres\n3. Ustaw credentials Dropbox OAuth2\n4. Sprawdz ze tabela media_catalog istnieje\n5. Opcjonalnie: zmien ppvPrice w kodzie Select Random File"
+      },
+      "id": "sticky-instructions-v2",
+      "name": "Instrukcje v2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-1280, -100],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Error Handling\n\n- HTTP nodes: auto-retry 3x z 5-10s delay\n- Global Error Trigger: email z detalami bledu\n- Media oznaczane jako posted PRZED uploadem\n  (zapobiega duplikatom, ale wymaga recznego\n  odznaczenia jesli workflow padnie)"
+      },
+      "id": "sticky-errors-v2",
+      "name": "Error Handling Info",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-564, 540]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{"node": "Check Random Schedule", "type": "main", "index": 0}]]
+    },
+    "Webhook Trigger": {
+      "main": [[{"node": "Get Available Media", "type": "main", "index": 0}]]
+    },
+    "When clicking 'Execute workflow'": {
+      "main": [[{"node": "Get Available Media", "type": "main", "index": 0}]]
+    },
+    "Check Random Schedule": {
+      "main": [[{"node": "Wait Random Minutes", "type": "main", "index": 0}]]
+    },
+    "Wait Random Minutes": {
+      "main": [[{"node": "Get Available Media", "type": "main", "index": 0}]]
+    },
+    "Get Available Media": {
+      "main": [[{"node": "Select Random File", "type": "main", "index": 0}]]
+    },
+    "Select Random File": {
+      "main": [[{"node": "Mark In Progress", "type": "main", "index": 0}]]
+    },
+    "Mark In Progress": {
+      "main": [[{"node": "Download Selected File", "type": "main", "index": 0}]]
+    },
+    "Download Selected File": {
+      "main": [[{"node": "Get Current User", "type": "main", "index": 0}]]
+    },
+    "Get Current User": {
+      "main": [[{"node": "Prepare Upload Data", "type": "main", "index": 0}]]
+    },
+    "Prepare Upload Data": {
+      "main": [[{"node": "Create Upload Session", "type": "main", "index": 0}]]
+    },
+    "Create Upload Session": {
+      "main": [[{"node": "Get Upload URL", "type": "main", "index": 0}]]
+    },
+    "Get Upload URL": {
+      "main": [[{"node": "Prepare S3 Upload", "type": "main", "index": 0}]]
+    },
+    "Prepare S3 Upload": {
+      "main": [[{"node": "Upload to S3", "type": "main", "index": 0}]]
+    },
+    "Upload to S3": {
+      "main": [[{"node": "Complete Upload", "type": "main", "index": 0}]]
+    },
+    "Complete Upload": {
+      "main": [[{"node": "Wait for Processing", "type": "main", "index": 0}]]
+    },
+    "Wait for Processing": {
+      "main": [[{"node": "Create Fanvue Post", "type": "main", "index": 0}]]
+    },
+    "Create Fanvue Post": {
+      "main": [[{"node": "Update Media Status", "type": "main", "index": 0}]]
+    },
+    "Update Media Status": {
+      "main": [[{"node": "Send Success Email", "type": "main", "index": 0}]]
+    },
+    "Error Trigger": {
+      "main": [[{"node": "Send Error Email", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "timeSavedPerExecution": 45
+  },
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

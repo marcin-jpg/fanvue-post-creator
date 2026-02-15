@@ -4,7 +4,12 @@
       "Bash(dir:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(python:*)",
+      "mcp__claude_ai_n8n__get_workflow_details",
+      "mcp__claude_ai_n8n__search_workflows",
+      "mcp__claude_ai_n8n__execute_workflow"
     ]
   }
 }
