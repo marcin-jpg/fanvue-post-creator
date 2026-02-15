@@ -12,7 +12,18 @@
       "Bash(cmd //c \"start http://localhost:7860\")",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nFanvue Post Creator with AI content idea generator\n\n- Gradio app with 4 tabs: Settings, New Post, History, Content Ideas\n- AI-powered caption generation \\(GPT-4o\\) for photos and videos\n- Content idea generator: 7-30 day plans with seasonal themes, PPV ideas\n- CSV export of content plans \\(utf-8-sig for Excel compatibility\\)\n- Cross-tab integration: use generated idea directly in New Post tab\n- Fanvue API integration for media upload and post creation\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFanvue Post Creator with AI content idea generator\n\n- Gradio app with 4 tabs: Settings, New Post, History, Content Ideas\n- AI-powered caption generation \\(GPT-4o\\) for photos and videos\n- Content idea generator: 7-30 day plans with seasonal themes, PPV ideas\n- CSV export of content plans \\(utf-8-sig for Excel compatibility\\)\n- Cross-tab integration: use generated idea directly in New Post tab\n- Fanvue API integration for media upload and post creation\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(cmd //c \"taskkill /PID 68108 /F\")",
+      "Bash(gh auth status:*)",
+      "Bash(winget install:*)",
+      "Bash(cmd //c \"gh auth status\")",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" repo create fanvue-post-creator --private --source=. --push --description \"Fanvue Post Creator - Gradio app with AI content idea generator\")",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" repo edit marcin-jpg/fanvue-post-creator --visibility public)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" repo edit marcin-jpg/fanvue-post-creator --visibility public --accept-visibility-change-consequences)"
     ]
   }
 }

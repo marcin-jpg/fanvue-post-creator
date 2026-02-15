@@ -1,0 +1,852 @@
+{
+  "name": "Fanvue Auto Post",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "trigger-manual",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "source",
+              "name": "source",
+              "value": "dropbox",
+              "type": "string"
+            },
+            {
+              "id": "dropboxPath",
+              "name": "dropboxPath",
+              "value": "/Juwellia",
+              "type": "string"
+            },
+            {
+              "id": "postText",
+              "name": "postText",
+              "value": "New content! Check it out \u2728",
+              "type": "string"
+            },
+            {
+              "id": "audience",
+              "name": "audience",
+              "value": "followers-and-subscribers",
+              "type": "string"
+            },
+            {
+              "id": "mediaType",
+              "name": "mediaType",
+              "value": "image",
+              "type": "string"
+            },
+            {
+              "id": "useAiCaption",
+              "name": "useAiCaption",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "scheduledAt",
+              "name": "scheduledAt",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-node",
+      "name": "Konfiguracja Posta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300],
+      "notesInFlow": true,
+      "notes": "Ustaw parametry posta:\n- source: dropbox/gdrive/local/ai\n- dropboxPath: \u015bcie\u017cka do pliku\n- postText: tekst posta\n- audience: followers-and-subscribers/subscribers-only/everyone\n- mediaType: image/video\n- useAiCaption: true/false\n- scheduledAt: ISO date lub puste"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "value": "dropbox",
+              "output": 0
+            },
+            {
+              "value": "gdrive",
+              "output": 1
+            },
+            {
+              "value": "local",
+              "output": 2
+            },
+            {
+              "value": "ai",
+              "output": 3
+            }
+          ]
+        },
+        "dataType": "string",
+        "value": "={{ $json.source }}"
+      },
+      "id": "router-source",
+      "name": "Router \u0179r\u00f3de\u0142",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "download",
+        "path": "={{ $json.dropboxPath }}"
+      },
+      "id": "dropbox-download",
+      "name": "Dropbox Download",
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [700, 100],
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "DROPBOX_CREDENTIAL_ID",
+          "name": "Dropbox OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.gdriveFileId }}",
+          "mode": "id"
+        }
+      },
+      "id": "gdrive-download",
+      "name": "Google Drive Download",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [700, 260],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "GDRIVE_CREDENTIAL_ID",
+          "name": "Google Drive OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "filePath": "={{ $json.localFilePath }}"
+      },
+      "id": "local-read",
+      "name": "Read Local File",
+      "type": "n8n-nodes-base.readBinaryFiles",
+      "typeVersion": 1,
+      "position": [700, 420]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "Generate a creative, engaging social media caption for a content creator post. Make it fun and include relevant emojis. Keep it under 280 characters. Topic: {{ $json.aiPrompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "openai-text",
+      "name": "AI Generate Caption",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [700, 580],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "merge-sources",
+      "name": "Merge Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-ai-caption",
+              "leftValue": "={{ $('Konfiguracja Posta').item.json.useAiCaption }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-ai-caption",
+      "name": "Use AI Caption?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1160, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "Create an engaging social media caption for this image. Be creative, use emojis, keep it under 280 characters."
+            },
+            {
+              "type": "image",
+              "imageType": "base64"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-caption-from-image",
+      "name": "AI Caption From Image",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [1400, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "finalCaption",
+              "name": "finalCaption",
+              "value": "={{ $json.output ? $json.output[0].content[0].text : $('Konfiguracja Posta').item.json.postText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-ai-caption",
+      "name": "Set AI Caption",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1620, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "finalCaption",
+              "name": "finalCaption",
+              "value": "={{ $('Konfiguracja Posta').item.json.postText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-manual-caption",
+      "name": "Set Manual Caption",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1620, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge-caption",
+      "name": "Merge Caption",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [1840, 300]
+    },
+    {
+      "parameters": {
+        "resource": "Creators",
+        "operation": "List Creators",
+        "requestOptions": {}
+      },
+      "id": "get-creators",
+      "name": "Get Creator ID",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [2060, 300],
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "FANVUE_CREDENTIAL_ID",
+          "name": "Fanvue OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Media",
+        "operation": "Create Upload Session",
+        "name": "={{ $('Merge Sources').item.binary.data.fileName }}",
+        "filename": "={{ $('Merge Sources').item.binary.data.fileName }}",
+        "mediaType": "={{ $('Konfiguracja Posta').item.json.mediaType }}",
+        "requestOptions": {}
+      },
+      "id": "create-upload-session",
+      "name": "Create Upload Session",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [2280, 300],
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "FANVUE_CREDENTIAL_ID",
+          "name": "Fanvue OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Media",
+        "operation": "Get Upload Part Url",
+        "uploadId": "={{ $json.uploadId }}",
+        "partNumber": 1,
+        "requestOptions": {}
+      },
+      "id": "get-upload-url",
+      "name": "Get Upload Part URL",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [2500, 300],
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "FANVUE_CREDENTIAL_ID",
+          "name": "Fanvue OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "={{ $('Merge Sources').item.binary.data }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "upload-to-s3",
+      "name": "Upload to S3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [2720, 300]
+    },
+    {
+      "parameters": {
+        "resource": "Media",
+        "operation": "Complete Upload Session",
+        "uploadId": "={{ $('Create Upload Session').item.json.uploadId }}",
+        "parts": "=[{\"partNumber\": 1, \"eTag\": \"{{ $json.headers.etag }}\"}]",
+        "requestOptions": {}
+      },
+      "id": "complete-upload",
+      "name": "Complete Upload",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [2940, 300],
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "FANVUE_CREDENTIAL_ID",
+          "name": "Fanvue OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.fanvue.com/creators/{{ $('Get Creator ID').item.json.data[0].uuid }}/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "fvApiOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Fanvue-API-Version",
+              "value": "2025-06-26"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $('Merge Caption').item.json.finalCaption }}\",\n  \"mediaUuids\": [\"{{ $json.uuid }}\"],\n  \"audience\": \"{{ $('Konfiguracja Posta').item.json.audience }}\"\n  {{ $('Konfiguracja Posta').item.json.scheduledAt ? ', \"scheduledAt\": \"' + $('Konfiguracja Posta').item.json.scheduledAt + '\"' : '' }}\n}",
+        "options": {}
+      },
+      "id": "create-post",
+      "name": "Create Fanvue Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [3160, 300],
+      "credentials": {
+        "fvApiOAuth2Api": {
+          "id": "FANVUE_CREDENTIAL_ID",
+          "name": "Fanvue OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "=Post created successfully! Media UUID: {{ $('Complete Upload').item.json.uuid }}",
+              "type": "string"
+            },
+            {
+              "id": "postId",
+              "name": "postId",
+              "value": "={{ $json.uuid }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-output",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3380, 300]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-rate-limit",
+              "leftValue": "={{ $json.error.httpCode }}",
+              "rightValue": 429,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-rate-limit",
+      "name": "Rate Limited?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [220, 600]
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "wait-retry",
+      "name": "Wait & Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "errorMessage",
+              "name": "errorMessage",
+              "value": "=Fanvue Post Error: {{ $json.error.message }}",
+              "type": "string"
+            },
+            {
+              "id": "errorCode",
+              "name": "errorCode",
+              "value": "={{ $json.error.httpCode }}",
+              "type": "number"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error-output",
+      "name": "Error Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 700]
+    },
+    {
+      "parameters": {
+        "content": "## Fanvue Auto Post Workflow\n\n### Instrukcja u\u017cycia:\n1. Ustaw parametry w node \"Konfiguracja Posta\"\n2. Wybierz \u017ar\u00f3d\u0142o: dropbox, gdrive, local lub ai\n3. Uruchom workflow r\u0119cznie\n\n### Wymagane credentials:\n- Fanvue OAuth2 (obowi\u0105zkowe)\n- Dropbox OAuth2 (je\u015bli u\u017cywasz Dropbox)\n- Google Drive OAuth2 (je\u015bli u\u017cywasz GDrive)\n- OpenAI API (je\u015bli u\u017cywasz AI caption)\n\n### Parametry konfiguracji:\n- **source**: dropbox/gdrive/local/ai\n- **dropboxPath**: \u015bcie\u017cka do pliku w Dropbox\n- **postText**: tekst posta (je\u015bli bez AI)\n- **audience**: followers-and-subscribers/subscribers-only/everyone\n- **mediaType**: image/video\n- **useAiCaption**: true/false\n- **scheduledAt**: data publikacji (ISO) lub puste"
+      },
+      "id": "sticky-instructions",
+      "name": "Instrukcje",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 0]
+    },
+    {
+      "parameters": {
+        "content": "## Upload Flow\n\n1. Create Upload Session\n2. Get Signed URL\n3. Upload to S3\n4. Complete Upload\n5. Create Post"
+      },
+      "id": "sticky-upload",
+      "name": "Upload Flow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [2200, 100]
+    },
+    {
+      "parameters": {
+        "content": "## Error Handling\n\nRate limit (429) - czeka 30s i ponawia\nInne b\u0142\u0119dy - loguje i ko\u0144czy"
+      },
+      "id": "sticky-errors",
+      "name": "Error Handling",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 500]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Konfiguracja Posta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konfiguracja Posta": {
+      "main": [
+        [
+          {
+            "node": "Router \u0179r\u00f3de\u0142",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router \u0179r\u00f3de\u0142": {
+      "main": [
+        [
+          {
+            "node": "Dropbox Download",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Drive Download",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Local File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Generate Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dropbox Download": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Download": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Local File": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Generate Caption": {
+      "main": [
+        [
+          {
+            "node": "Merge Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Sources": {
+      "main": [
+        [
+          {
+            "node": "Use AI Caption?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use AI Caption?": {
+      "main": [
+        [
+          {
+            "node": "AI Caption From Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Manual Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Caption From Image": {
+      "main": [
+        [
+          {
+            "node": "Set AI Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set AI Caption": {
+      "main": [
+        [
+          {
+            "node": "Merge Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Manual Caption": {
+      "main": [
+        [
+          {
+            "node": "Merge Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Caption": {
+      "main": [
+        [
+          {
+            "node": "Get Creator ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Creator ID": {
+      "main": [
+        [
+          {
+            "node": "Create Upload Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Upload Session": {
+      "main": [
+        [
+          {
+            "node": "Get Upload Part URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Upload Part URL": {
+      "main": [
+        [
+          {
+            "node": "Upload to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to S3": {
+      "main": [
+        [
+          {
+            "node": "Complete Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Upload": {
+      "main": [
+        [
+          {
+            "node": "Create Fanvue Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Fanvue Post": {
+      "main": [
+        [
+          {
+            "node": "Success Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Rate Limited?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limited?": {
+      "main": [
+        [
+          {
+            "node": "Wait & Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

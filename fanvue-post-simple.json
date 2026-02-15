@@ -1,0 +1,617 @@
+{
+  "name": "Fanvue Post - Simple",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "bcf18846-029a-44d3-a8c3-c3f135ab808e",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [0, 300],
+      "webhookId": "fanvue-post-chat"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dropboxPath",
+              "name": "dropboxPath",
+              "value": "={{ $json.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "postText",
+              "name": "postText",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "audience",
+              "name": "audience",
+              "value": "followers-and-subscribers",
+              "type": "string"
+            },
+            {
+              "id": "useAiCaption",
+              "name": "useAiCaption",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-simple",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300],
+      "notesInFlow": true,
+      "notes": "Wpisz \u015bcie\u017ck\u0119 Dropbox w chat.\nNp: /Juwellia/photo.jpg"
+    },
+    {
+      "parameters": {
+        "resource": "Creators",
+        "operation": "List Creators",
+        "requestOptions": {}
+      },
+      "id": "get-agency-creators",
+      "name": "Get Creator",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "download",
+        "path": "={{ $('Parse Input').item.json.dropboxPath }}"
+      },
+      "id": "dropbox-dl",
+      "name": "Download from Dropbox",
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "is-video",
+              "leftValue": "={{ $binary.data.mimeType }}",
+              "rightValue": "video",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-media-type",
+      "name": "Video or Image?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "mediaType",
+              "name": "mediaType",
+              "value": "video",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-video",
+      "name": "Set Video Type",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "mediaType",
+              "name": "mediaType",
+              "value": "image",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-image",
+      "name": "Set Image Type",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge-media-type",
+      "name": "Merge Media Type",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-ai",
+              "leftValue": "={{ $('Parse Input').item.json.useAiCaption }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            },
+            {
+              "id": "is-image-for-ai",
+              "leftValue": "={{ $json.mediaType }}",
+              "rightValue": "image",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "should-ai-caption",
+      "name": "Generate AI Caption?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [1540, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "Create a short, engaging social media caption for this photo. Write as a content creator. Use emojis. Keep under 200 characters. Write in English."
+            },
+            {
+              "type": "image",
+              "imageType": "base64"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-caption",
+      "name": "Generate Caption",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [1760, 200]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "Create a short, engaging social media caption for a video post. Write as a content creator. Use emojis. Keep under 200 characters. Write in English. Make it mysterious and intriguing."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ai-caption-video",
+      "name": "Generate Video Caption",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [1760, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge-captions",
+      "name": "Merge Captions",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [1980, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "caption",
+              "name": "caption",
+              "value": "={{ $json.output ? $json.output[0].content[0].text : 'New post \u2728' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-caption",
+      "name": "Extract Caption",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "resource": "Media",
+        "operation": "Create Upload Session",
+        "name": "={{ $('Download from Dropbox').item.binary.data.fileName }}",
+        "filename": "={{ $('Download from Dropbox').item.binary.data.fileName }}",
+        "mediaType": "={{ $('Merge Media Type').item.json.mediaType }}",
+        "requestOptions": {}
+      },
+      "id": "create-session",
+      "name": "Create Upload Session",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [2420, 300]
+    },
+    {
+      "parameters": {
+        "resource": "Media",
+        "operation": "Get Upload Part Url",
+        "uploadId": "={{ $json.uploadId }}",
+        "partNumber": 1,
+        "requestOptions": {}
+      },
+      "id": "get-url",
+      "name": "Get Upload URL",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [2640, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.url }}",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "={{ $('Download from Dropbox').item.binary.data }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "upload-s3",
+      "name": "Upload to S3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [2860, 300]
+    },
+    {
+      "parameters": {
+        "resource": "Media",
+        "operation": "Complete Upload Session",
+        "uploadId": "={{ $('Create Upload Session').item.json.uploadId }}",
+        "parts": "=[{\"partNumber\": 1, \"eTag\": \"{{ $json.headers.etag }}\"}]",
+        "requestOptions": {}
+      },
+      "id": "complete-session",
+      "name": "Complete Upload",
+      "type": "@fanvue/n8n-nodes-fanvue.fvApi",
+      "typeVersion": 1,
+      "position": [3080, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.fanvue.com/creators/{{ $('Get Creator').item.json.data[0].uuid }}/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "fvApiOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Fanvue-API-Version",
+              "value": "2025-06-26"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": {{ JSON.stringify($('Extract Caption').item.json.caption) }},\n  \"mediaUuids\": [\"{{ $json.uuid }}\"],\n  \"audience\": \"{{ $('Parse Input').item.json.audience }}\"\n}",
+        "options": {}
+      },
+      "id": "create-post",
+      "name": "Create Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [3300, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "result",
+              "name": "result",
+              "value": "=Post created! \u2705\nMedia: {{ $('Download from Dropbox').item.binary.data.fileName }}\nCaption: {{ $('Extract Caption').item.json.caption }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "output-success",
+      "name": "Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [3520, 300]
+    },
+    {
+      "parameters": {
+        "content": "## Fanvue Post - Simple\n\n### Jak u\u017cywa\u0107:\nWpisz \u015bcie\u017ck\u0119 do pliku w Dropbox w oknie czatu.\n\nPrzyk\u0142ad: `/Juwellia/photo.jpg`\n\n### Co robi workflow:\n1. Pobiera plik z Dropbox\n2. Wykrywa typ (video/image)\n3. Generuje caption przez AI (GPT-4o)\n4. Uploaduje media do Fanvue\n5. Tworzy post\n\n### Wymagane credentials:\n- Fanvue OAuth2\n- Dropbox OAuth2\n- OpenAI API"
+      },
+      "id": "sticky-help",
+      "name": "Help",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-200, 100]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Input": {
+      "main": [
+        [
+          {
+            "node": "Get Creator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Creator": {
+      "main": [
+        [
+          {
+            "node": "Download from Dropbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download from Dropbox": {
+      "main": [
+        [
+          {
+            "node": "Video or Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video or Image?": {
+      "main": [
+        [
+          {
+            "node": "Set Video Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Image Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Video Type": {
+      "main": [
+        [
+          {
+            "node": "Merge Media Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Image Type": {
+      "main": [
+        [
+          {
+            "node": "Merge Media Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Media Type": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Caption?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Caption?": {
+      "main": [
+        [
+          {
+            "node": "Generate Caption",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Video Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Caption": {
+      "main": [
+        [
+          {
+            "node": "Merge Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Video Caption": {
+      "main": [
+        [
+          {
+            "node": "Merge Captions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Captions": {
+      "main": [
+        [
+          {
+            "node": "Extract Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Caption": {
+      "main": [
+        [
+          {
+            "node": "Create Upload Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Upload Session": {
+      "main": [
+        [
+          {
+            "node": "Get Upload URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Upload URL": {
+      "main": [
+        [
+          {
+            "node": "Upload to S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to S3": {
+      "main": [
+        [
+          {
+            "node": "Complete Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complete Upload": {
+      "main": [
+        [
+          {
+            "node": "Create Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Post": {
+      "main": [
+        [
+          {
+            "node": "Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
