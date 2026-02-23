@@ -163,15 +163,19 @@
     },
     {
       "parameters": {
-        "authentication": "oAuth2",
-        "operation": "share",
-        "path": "={{ $('Select Social Content').first().json.selectedPath }}",
+        "method": "POST",
+        "url": "https://api.dropboxapi.com/2/files/get_temporary_link",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "dropboxOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ path: $('Select Social Content').first().json.selectedPath }) }}",
         "options": {}
       },
       "id": "sm-get-shared-link",
       "name": "Get Shared Link",
-      "type": "n8n-nodes-base.dropbox",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         516,
         320
@@ -193,7 +197,7 @@
         320
       ],
       "parameters": {
-        "jsCode": "const selectedData = $('Select Social Content').first().json;\nconst sharedLinkData = $input.first().json;\n\n// Get shared link URL - convert to direct download link\nlet imageUrl = sharedLinkData.url || sharedLinkData.shared_link || '';\n// Convert Dropbox share link to direct download\nif (imageUrl.includes('dropbox.com')) {\n  imageUrl = imageUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '').replace('&dl=0', '');\n}\n\n// Use description_social from media_catalog\nlet caption = selectedData.description_social;\n\n// Fallback SFW captions if empty\nif (!caption || caption.trim().length < 5) {\n  const fallbackCaptions = [\n    'New day, new vibes! How are you doing today? #mood #vibes',\n    'Just me being me. Hope your day is as beautiful as you are! #selfie #beauty',\n    'Good things take time. Enjoying every moment! #lifestyle #happy',\n    'Smile more, worry less. Life is too short! #positivity #smile',\n    'Another beautiful day, another reason to be grateful! #blessed #grateful'\n  ];\n  caption = fallbackCaptions[Math.floor(Math.random() * fallbackCaptions.length)];\n}\n\nreturn [{\n  json: {\n    image_url: imageUrl,\n    caption: caption,\n    file_name: selectedData.fileName,\n    file_path: selectedData.selectedPath,\n    media_id: selectedData.id,\n    total_remaining: selectedData.totalAvailable - 1\n  }\n}];"
+        "jsCode": "const selectedData = $('Select Social Content').first().json;\nconst linkData = $input.first().json;\n\n// get_temporary_link returns direct download URL in 'link' field\nconst imageUrl = linkData.link || '';\n\n// Use description_social from media_catalog\nlet caption = selectedData.description_social;\n\n// Fallback SFW captions if empty\nif (!caption || caption.trim().length < 5) {\n  const fallbackCaptions = [\n    'New day, new vibes! How are you doing today? #mood #vibes',\n    'Just me being me. Hope your day is as beautiful as you are! #selfie #beauty',\n    'Good things take time. Enjoying every moment! #lifestyle #happy',\n    'Smile more, worry less. Life is too short! #positivity #smile',\n    'Another beautiful day, another reason to be grateful! #blessed #grateful'\n  ];\n  caption = fallbackCaptions[Math.floor(Math.random() * fallbackCaptions.length)];\n}\n\nreturn [{\n  json: {\n    image_url: imageUrl,\n    caption: caption,\n    file_name: selectedData.fileName,\n    file_path: selectedData.selectedPath,\n    media_id: selectedData.id,\n    total_remaining: selectedData.totalAvailable - 1\n  }\n}];"
       }
     },
     {
