@@ -1,0 +1,444 @@
+{
+  "name": "Social Media Auto Post via Make",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1024,
+        320
+      ],
+      "id": "sm-schedule-trigger",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "social-media-auto-post",
+        "options": {}
+      },
+      "id": "sm-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        128
+      ],
+      "webhookId": "social-media-auto-post-wh"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        512
+      ],
+      "id": "sm-manual-trigger",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "id": "sm-check-random-schedule",
+      "name": "Check Random Schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -804,
+        320
+      ],
+      "parameters": {
+        "jsCode": "// 1-2 random posts per day, hours 10-20\nconst today = new Date();\nconst seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();\n\nfunction seededRandom(s) {\n  const x = Math.sin(s) * 10000;\n  return x - Math.floor(x);\n}\n\n// Random number of posts: 1 or 2\nconst numPosts = 1 + Math.floor(seededRandom(seed * 13) * 2);\n\n// Generate unique hours between 10-20\nconst hours = new Set();\nlet i = 0;\nwhile (hours.size < numPosts && i < 100) {\n  const hour = 10 + Math.floor(seededRandom(seed + i + 500) * 11);\n  hours.add(hour);\n  i++;\n}\n\nconst currentHour = today.getHours();\nconst scheduledHours = Array.from(hours).sort((a, b) => a - b);\n\nconsole.log(`Today: ${numPosts} social posts at hours: ${scheduledHours.join(', ')}`);\nconsole.log(`Current hour: ${currentHour}`);\n\nif (scheduledHours.includes(currentHour)) {\n  const waitMinutes = Math.floor(seededRandom(seed + currentHour * 200) * 55);\n  console.log(`Active! Waiting ${waitMinutes} minutes before posting`);\n  \n  return [{\n    json: {\n      scheduledHours,\n      currentHour,\n      waitMinutes,\n      numPostsToday: numPosts,\n      expectedPostTime: `${currentHour}:${waitMinutes.toString().padStart(2, '0')}`,\n      shouldRun: true\n    }\n  }];\n}\n\nconsole.log('Skipping - not a scheduled hour');\nreturn [];"
+      }
+    },
+    {
+      "id": "sm-wait-random-minutes",
+      "name": "Wait Random Minutes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -584,
+        320
+      ],
+      "parameters": {
+        "unit": "minutes",
+        "amount": "={{ $json.waitMinutes }}"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "mode": "name",
+          "value": "media_catalog"
+        },
+        "returnAll": true
+      },
+      "id": "sm-get-available-media",
+      "name": "Get Available Media",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -364,
+        320
+      ]
+    },
+    {
+      "id": "sm-select-social-content",
+      "name": "Select Social Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        320
+      ],
+      "parameters": {
+        "jsCode": "// Get all available media from table\nconst allMedia = $input.all();\n\n// Filter: source_folder === 'socialmedia', not yet posted, only images\nconst available = allMedia.filter(item => {\n  const sf = item.json.source_folder;\n  const posted = item.json.added_to_social_media;\n  const filePath = item.json.file_path || '';\n  const ext = filePath.toLowerCase().slice(filePath.lastIndexOf('.'));\n  const isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);\n  \n  return sf === 'socialmedia' && posted === false && !isVideo;\n});\n\nif (available.length === 0) {\n  throw new Error('No available social media content found (all already posted or none in socialmedia folder)');\n}\n\n// Select random file\nconst randomIndex = Math.floor(Math.random() * available.length);\nconst selected = available[randomIndex];\n\nconst filePath = selected.json.file_path;\nconst fileName = filePath.split('/').pop();\n\n// Use description_social, fallback to generic\nlet caption = selected.json.description_social;\nif (!caption || caption.trim().length < 5) {\n  caption = '';\n}\n\nreturn [{\n  json: {\n    id: selected.json.id,\n    selectedPath: selected.json.file_path,\n    fileName: fileName,\n    description_social: caption,\n    source_folder: selected.json.source_folder,\n    totalAvailable: available.length,\n    selectedIndex: randomIndex\n  }\n}];"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "mode": "name",
+          "value": "media_catalog"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Select Social Content').first().json.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "added_to_social_media": true
+          }
+        },
+        "options": {}
+      },
+      "id": "sm-mark-in-progress",
+      "name": "Mark In Progress",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        76,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "download",
+        "path": "={{ $('Select Social Content').first().json.selectedPath }}"
+      },
+      "id": "sm-dropbox-download",
+      "name": "Download File",
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        296,
+        320
+      ],
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "q75pCshTYJzFnnyn",
+          "name": "Dropbox account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "share",
+        "path": "={{ $('Select Social Content').first().json.selectedPath }}",
+        "options": {}
+      },
+      "id": "sm-get-shared-link",
+      "name": "Get Shared Link",
+      "type": "n8n-nodes-base.dropbox",
+      "typeVersion": 1,
+      "position": [
+        516,
+        320
+      ],
+      "credentials": {
+        "dropboxOAuth2Api": {
+          "id": "q75pCshTYJzFnnyn",
+          "name": "Dropbox account"
+        }
+      }
+    },
+    {
+      "id": "sm-prepare-ig-caption",
+      "name": "Prepare IG Caption",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const selectedData = $('Select Social Content').first().json;\nconst sharedLinkData = $input.first().json;\n\n// Get shared link URL - convert to direct download link\nlet imageUrl = sharedLinkData.url || sharedLinkData.shared_link || '';\n// Convert Dropbox share link to direct download\nif (imageUrl.includes('dropbox.com')) {\n  imageUrl = imageUrl.replace('www.dropbox.com', 'dl.dropboxusercontent.com').replace('?dl=0', '').replace('&dl=0', '');\n}\n\n// Use description_social from media_catalog\nlet caption = selectedData.description_social;\n\n// Fallback SFW captions if empty\nif (!caption || caption.trim().length < 5) {\n  const fallbackCaptions = [\n    'New day, new vibes! How are you doing today? #mood #vibes',\n    'Just me being me. Hope your day is as beautiful as you are! #selfie #beauty',\n    'Good things take time. Enjoying every moment! #lifestyle #happy',\n    'Smile more, worry less. Life is too short! #positivity #smile',\n    'Another beautiful day, another reason to be grateful! #blessed #grateful'\n  ];\n  caption = fallbackCaptions[Math.floor(Math.random() * fallbackCaptions.length)];\n}\n\nreturn [{\n  json: {\n    image_url: imageUrl,\n    caption: caption,\n    file_name: selectedData.fileName,\n    file_path: selectedData.selectedPath,\n    media_id: selectedData.id,\n    total_remaining: selectedData.totalAvailable - 1\n  }\n}];"
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hook.eu2.make.com/k4dam0v182i952qu9nk2qi1w0koetqiq",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ image_url: $json.image_url, caption: $json.caption, file_name: $json.file_name }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "sm-send-to-make",
+      "name": "Send to Make",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        956,
+        320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "sendTo": "marcinjarosz@icloud.com",
+        "subject": "=Instagram Post Sent to Make - {{ $('Select Social Content').first().json.fileName }}",
+        "emailType": "html",
+        "message": "=<h2>Social Media Post Sent to Make.com!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Select Social Content').first().json.fileName }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare IG Caption').first().json.caption }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Image URL</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare IG Caption').first().json.image_url }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare IG Caption').first().json.total_remaining }}</td></tr>\n</table>\n{{ $('Prepare IG Caption').first().json.total_remaining < 10 ? '<div style=\"margin-top: 12px; padding: 12px; background: #ffcccc; border: 2px solid #cc0000; border-radius: 8px; text-align: center;\"><strong style=\"color: #cc0000; font-size: 16px;\">LOW CONTENT WARNING</strong><br>Only <strong>' + $('Prepare IG Caption').first().json.total_remaining + '</strong> social media files remaining! Add more content to Dropbox and run media catalog sync.</div>' : '' }}",
+        "options": {}
+      },
+      "id": "sm-send-success-email",
+      "name": "Send Success Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1176,
+        320
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "vegX3gKBXTfZVtRg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "sm-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -364,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "marcinjarosz@icloud.com",
+        "subject": "=SOCIAL MEDIA ERROR - {{ $json.workflow.name }} - {{ $json.execution.lastNodeExecuted }}",
+        "emailType": "html",
+        "message": "=<h2 style=\"color: red;\">Social Media Workflow Error!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Workflow</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.workflow.name }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Failed Node</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.lastNodeExecuted }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Error</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.error.message }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Execution ID</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.execution.id }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n</table>",
+        "options": {}
+      },
+      "id": "sm-send-error-email",
+      "name": "Send Error Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -144,
+        640
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "vegX3gKBXTfZVtRg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Social Media Auto Post via Make\n\nPublikuje zdjecia z folderu socialmedia na Instagram przez Make.com\n\n### Jak dziala:\n1. Schedule 1-2 posty dziennie (10-20h)\n2. Losuje zdjecie z media_catalog (source_folder=socialmedia)\n3. Oznacza jako posted (added_to_social_media=true)\n4. Pobiera plik z Dropboxa i tworzy shared link\n5. Wysyla image_url + caption na webhook Make.com\n6. Make.com publikuje na Instagram\n\n### Wymagania:\n- Make.com scenariusz musi byc aktywny\n- Modul Instagram dodany za webhookiem w Make.com"
+      },
+      "id": "sm-sticky-instructions",
+      "name": "Instrukcje",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1280,
+        -100
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Random Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Available Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Get Available Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Random Schedule": {
+      "main": [
+        [
+          {
+            "node": "Wait Random Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Random Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Available Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Available Media": {
+      "main": [
+        [
+          {
+            "node": "Select Social Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Social Content": {
+      "main": [
+        [
+          {
+            "node": "Mark In Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark In Progress": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Get Shared Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Shared Link": {
+      "main": [
+        [
+          {
+            "node": "Prepare IG Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare IG Caption": {
+      "main": [
+        [
+          {
+            "node": "Send to Make",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Make": {
+      "main": [
+        [
+          {
+            "node": "Send Success Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  }
+}
