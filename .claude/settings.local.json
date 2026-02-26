@@ -18,7 +18,9 @@
       "Bash(done)",
       "Bash(# Check global settings for n8n MCP config\ncat /Users/glamstudio/.claude/settings.json 2>/dev/null | python3 -c \"\nimport json, sys\ndata = json.load\\(sys.stdin\\)\nmcp = data.get\\('mcpServers', {}\\)\nfor name, config in mcp.items\\(\\):\n    if 'n8n' in name.lower\\(\\):\n        print\\(f'{name}:'\\)\n        env = config.get\\('env', {}\\)\n        for k, v in env.items\\(\\):\n            if 'KEY' in k or 'key' in k:\n                print\\(f'  {k}: {v[:10]}...'\\)\n            else:\n                print\\(f'  {k}: {v}'\\)\n\" 2>/dev/null)",
       "Bash(head:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebSearch",
+      "Bash(env:*)"
     ]
   }
 }

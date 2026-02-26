@@ -1,5 +1,5 @@
 {
-  "name": "Social Media Auto Post via Make",
+  "name": "Social Media Auto Post via Blotato",
   "nodes": [
     {
       "parameters": {
@@ -103,7 +103,7 @@
         320
       ],
       "parameters": {
-        "jsCode": "// Get all available media from table\nconst allMedia = $input.all();\n\n// Filter: source_folder === 'socialmedia', not yet posted, only images\nconst available = allMedia.filter(item => {\n  const sf = item.json.source_folder;\n  const posted = item.json.added_to_social_media;\n  const filePath = item.json.file_path || '';\n  const ext = filePath.toLowerCase().slice(filePath.lastIndexOf('.'));\n  const isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);\n  \n  return sf === 'socialmedia' && posted === false && !isVideo;\n});\n\nif (available.length === 0) {\n  throw new Error('No available social media content found (all already posted or none in socialmedia folder)');\n}\n\n// Select random file\nconst randomIndex = Math.floor(Math.random() * available.length);\nconst selected = available[randomIndex];\n\nconst filePath = selected.json.file_path;\nconst fileName = filePath.split('/').pop();\n\n// Use description_social, fallback to generic\nlet caption = selected.json.description_social;\nif (!caption || caption.trim().length < 5) {\n  caption = '';\n}\n\nreturn [{\n  json: {\n    id: selected.json.id,\n    selectedPath: selected.json.file_path,\n    fileName: fileName,\n    description_social: caption,\n    source_folder: selected.json.source_folder,\n    totalAvailable: available.length,\n    selectedIndex: randomIndex\n  }\n}];"
+        "jsCode": "// Get all available media from table\nconst allMedia = $input.all();\n\n// Filter: source_folder === 'socialmedia', not yet posted (images + videos)\nconst available = allMedia.filter(item => {\n  const sf = item.json.source_folder;\n  const posted = item.json.added_to_social_media;\n  return sf === 'socialmedia' && posted === false;\n});\n\nif (available.length === 0) {\n  throw new Error('No available social media content found (all already posted or none in socialmedia folder)');\n}\n\n// Select random file\nconst randomIndex = Math.floor(Math.random() * available.length);\nconst selected = available[randomIndex];\n\nconst filePath = selected.json.file_path;\nconst fileName = filePath.split('/').pop();\nconst ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));\nconst isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);\n\n// Use description_social, fallback to generic\nlet caption = selected.json.description_social;\nif (!caption || caption.trim().length < 5) {\n  caption = '';\n}\n\nreturn [{\n  json: {\n    id: selected.json.id,\n    selectedPath: selected.json.file_path,\n    fileName: fileName,\n    description_social: caption,\n    source_folder: selected.json.source_folder,\n    isVideo: isVideo,\n    totalAvailable: available.length,\n    selectedIndex: randomIndex\n  }\n}];"
       }
     },
     {
@@ -142,27 +142,6 @@
     },
     {
       "parameters": {
-        "authentication": "oAuth2",
-        "operation": "download",
-        "path": "={{ $('Select Social Content').first().json.selectedPath }}"
-      },
-      "id": "sm-dropbox-download",
-      "name": "Download File",
-      "type": "n8n-nodes-base.dropbox",
-      "typeVersion": 1,
-      "position": [
-        296,
-        320
-      ],
-      "credentials": {
-        "dropboxOAuth2Api": {
-          "id": "q75pCshTYJzFnnyn",
-          "name": "Dropbox account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "https://api.dropboxapi.com/2/files/get_temporary_link",
         "authentication": "predefinedCredentialType",
@@ -177,7 +156,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        516,
+        296,
         320
       ],
       "credentials": {
@@ -188,31 +167,72 @@
       }
     },
     {
-      "id": "sm-prepare-ig-caption",
-      "name": "Prepare IG Caption",
+      "id": "sm-prepare-captions",
+      "name": "Prepare Captions",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        736,
+        516,
         320
       ],
       "parameters": {
-        "jsCode": "const selectedData = $('Select Social Content').first().json;\nconst linkData = $input.first().json;\n\n// get_temporary_link returns direct download URL in 'link' field\nconst imageUrl = linkData.link || '';\n\n// Use description_social from media_catalog\nlet caption = selectedData.description_social;\n\n// Fallback SFW captions if empty\nif (!caption || caption.trim().length < 5) {\n  const fallbackCaptions = [\n    'New day, new vibes! How are you doing today? #mood #vibes',\n    'Just me being me. Hope your day is as beautiful as you are! #selfie #beauty',\n    'Good things take time. Enjoying every moment! #lifestyle #happy',\n    'Smile more, worry less. Life is too short! #positivity #smile',\n    'Another beautiful day, another reason to be grateful! #blessed #grateful'\n  ];\n  caption = fallbackCaptions[Math.floor(Math.random() * fallbackCaptions.length)];\n}\n\nreturn [{\n  json: {\n    image_url: imageUrl,\n    caption: caption,\n    file_name: selectedData.fileName,\n    file_path: selectedData.selectedPath,\n    media_id: selectedData.id,\n    total_remaining: selectedData.totalAvailable - 1\n  }\n}];"
+        "jsCode": "const selectedData = $('Select Social Content').first().json;\nconst linkData = $input.first().json;\n\n// get_temporary_link returns direct download URL in 'link' field\nconst imageUrl = linkData.link || '';\nconst isVideo = selectedData.isVideo;\n\n// Use description_social from media_catalog\nlet caption = selectedData.description_social;\n\n// Fallback SFW captions if empty\nif (!caption || caption.trim().length < 5) {\n  const fallbackCaptions = [\n    'New day, new vibes! How are you doing today? \\u2728 #mood #vibes',\n    'Just me being me. Hope your day is as beautiful as you are! \\u{1F496} #selfie #beauty',\n    'Good things take time. Enjoying every moment! \\u2728 #lifestyle #happy',\n    'Smile more, worry less. Life is too short! \\u{1F60A} #positivity #smile',\n    'Another beautiful day, another reason to be grateful! \\u2728 #blessed #grateful'\n  ];\n  caption = fallbackCaptions[Math.floor(Math.random() * fallbackCaptions.length)];\n}\n\n// Twitter: max 280 chars - strip hashtags if too long\nlet twitterCaption = caption;\nif (twitterCaption.length > 280) {\n  twitterCaption = twitterCaption.replace(/#\\w+/g, '').trim();\n  if (twitterCaption.length > 280) {\n    twitterCaption = twitterCaption.substring(0, 277) + '...';\n  }\n}\n\n// Build Instagram request body\nconst igTarget = { targetType: 'instagram' };\nif (isVideo) {\n  igTarget.mediaType = 'reel';\n}\nconst igRequestBody = JSON.stringify({\n  post: {\n    accountId: '16266',\n    content: {\n      text: caption,\n      mediaUrls: [imageUrl],\n      platform: 'instagram'\n    },\n    target: igTarget\n  }\n});\n\n// Build Twitter request body\nconst twitterRequestBody = JSON.stringify({\n  post: {\n    accountId: '7739',\n    content: {\n      text: twitterCaption,\n      mediaUrls: [imageUrl],\n      platform: 'twitter'\n    },\n    target: {\n      targetType: 'twitter'\n    }\n  }\n});\n\nreturn [{\n  json: {\n    image_url: imageUrl,\n    ig_caption: caption,\n    twitter_caption: twitterCaption,\n    ig_request_body: igRequestBody,\n    twitter_request_body: twitterRequestBody,\n    file_name: selectedData.fileName,\n    file_path: selectedData.selectedPath,\n    media_id: selectedData.id,\n    is_video: isVideo,\n    media_type: isVideo ? 'video (reel)' : 'image',\n    total_remaining: selectedData.totalAvailable - 1\n  }\n}];"
       }
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://hook.eu2.make.com/k4dam0v182i952qu9nk2qi1w0koetqiq",
+        "url": "https://backend.blotato.com/v2/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "blotato-api-key",
+              "value": "YOUR_BLOTATO_API_KEY"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ image_url: $json.image_url, caption: $json.caption, file_name: $json.file_name }) }}",
+        "jsonBody": "={{ $json.ig_request_body }}",
         "options": {
           "timeout": 30000
         }
       },
-      "id": "sm-send-to-make",
-      "name": "Send to Make",
+      "id": "sm-post-instagram",
+      "name": "Post to Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        736,
+        320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://backend.blotato.com/v2/posts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "blotato-api-key",
+              "value": "YOUR_BLOTATO_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Prepare Captions').first().json.twitter_request_body }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "sm-post-twitter",
+      "name": "Post to Twitter",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -226,9 +246,9 @@
     {
       "parameters": {
         "sendTo": "marcinjarosz@icloud.com",
-        "subject": "=Instagram Post Sent to Make - {{ $('Select Social Content').first().json.fileName }}",
+        "subject": "=Social Media Posted - {{ $('Prepare Captions').first().json.file_name }} (IG + X)",
         "emailType": "html",
-        "message": "=<h2>Social Media Post Sent to Make.com!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Select Social Content').first().json.fileName }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare IG Caption').first().json.caption }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Image URL</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare IG Caption').first().json.image_url }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare IG Caption').first().json.total_remaining }}</td></tr>\n</table>\n{{ $('Prepare IG Caption').first().json.total_remaining < 10 ? '<div style=\"margin-top: 12px; padding: 12px; background: #ffcccc; border: 2px solid #cc0000; border-radius: 8px; text-align: center;\"><strong style=\"color: #cc0000; font-size: 16px;\">LOW CONTENT WARNING</strong><br>Only <strong>' + $('Prepare IG Caption').first().json.total_remaining + '</strong> social media files remaining! Add more content to Dropbox and run media catalog sync.</div>' : '' }}",
+        "message": "=<h2>Social Media Posts Published via Blotato!</h2><table style=\"border-collapse: collapse; width: 100%;\">\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>File</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Captions').first().json.file_name }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Type</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Captions').first().json.media_type }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Platforms</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">Instagram (@juwellia4) + Twitter/X (@juwellia4)</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>IG Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Captions').first().json.ig_caption }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Twitter Caption</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Captions').first().json.twitter_caption }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>IG Post ID</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Post to Instagram').first().json.postSubmissionId || 'N/A' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Twitter Post ID</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.postSubmissionId || 'N/A' }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ new Date().toLocaleString('pl-PL') }}</td></tr>\n<tr><td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Media Left</strong></td><td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Prepare Captions').first().json.total_remaining }}</td></tr>\n</table>\n{{ $('Prepare Captions').first().json.total_remaining < 10 ? '<div style=\"margin-top: 12px; padding: 12px; background: #ffcccc; border: 2px solid #cc0000; border-radius: 8px; text-align: center;\"><strong style=\"color: #cc0000; font-size: 16px;\">LOW CONTENT WARNING</strong><br>Only <strong>' + $('Prepare Captions').first().json.total_remaining + '</strong> social media files remaining! Add more content to Dropbox and run media catalog sync.</div>' : '' }}",
         "options": {}
       },
       "id": "sm-send-success-email",
@@ -236,7 +256,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        1176,
+        1396,
         320
       ],
       "credentials": {
@@ -282,7 +302,7 @@
     },
     {
       "parameters": {
-        "content": "## Social Media Auto Post via Make\n\nPublikuje zdjecia z folderu socialmedia na Instagram przez Make.com\n\n### Jak dziala:\n1. Schedule 1-2 posty dziennie (10-20h)\n2. Losuje zdjecie z media_catalog (source_folder=socialmedia)\n3. Oznacza jako posted (added_to_social_media=true)\n4. Pobiera plik z Dropboxa i tworzy shared link\n5. Wysyla image_url + caption na webhook Make.com\n6. Make.com publikuje na Instagram\n\n### Wymagania:\n- Make.com scenariusz musi byc aktywny\n- Modul Instagram dodany za webhookiem w Make.com"
+        "content": "## Social Media Auto Post via Blotato\n\nPublikuje zdjecia i filmy z folderu socialmedia na Instagram + Twitter/X przez Blotato API\n\n### Jak dziala:\n1. Schedule 1-2 posty dziennie (10-20h)\n2. Losuje media z media_catalog (source_folder=socialmedia)\n3. Oznacza jako posted (added_to_social_media=true)\n4. Pobiera temporary link z Dropboxa\n5. Publikuje na Instagram (zdjecia jako post, filmy jako reel)\n6. Publikuje na Twitter/X\n7. Wysyla email z potwierdzeniem\n\n### Konta Blotato:\n- Instagram: @juwellia4 (ID: 16266)\n- Twitter/X: @juwellia4 (ID: 7739)"
       },
       "id": "sm-sticky-instructions",
       "name": "Instrukcje",
@@ -293,6 +313,37 @@
         -100
       ],
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "mode": "name",
+          "value": "post_history"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_name": "={{ $('Prepare Captions').first().json.file_name }}",
+            "caption": "={{ $('Prepare Captions').first().json.ig_caption }}",
+            "caption_source": "social_media_blotato",
+            "media_type": "={{ $('Prepare Captions').first().json.media_type }}",
+            "audience": "public",
+            "ppv_price": "0",
+            "fanvue_post_id": "={{ 'IG:' + $('Post to Instagram').first().json.postSubmissionId + ' | X:' + $('Post to Twitter').first().json.postSubmissionId }}",
+            "published_at": "={{ new Date().toISOString() }}",
+            "source_folder": "socialmedia"
+          }
+        },
+        "options": {}
+      },
+      "id": "sm-log-post-history",
+      "name": "Log to Post History",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1176,
+        320
+      ]
     }
   ],
   "connections": {
@@ -377,17 +428,6 @@
       "main": [
         [
           {
-            "node": "Download File",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Download File": {
-      "main": [
-        [
-          {
             "node": "Get Shared Link",
             "type": "main",
             "index": 0
@@ -399,29 +439,40 @@
       "main": [
         [
           {
-            "node": "Prepare IG Caption",
+            "node": "Prepare Captions",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare IG Caption": {
+    "Prepare Captions": {
       "main": [
         [
           {
-            "node": "Send to Make",
+            "node": "Post to Instagram",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send to Make": {
+    "Post to Instagram": {
       "main": [
         [
           {
-            "node": "Send Success Email",
+            "node": "Post to Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Twitter": {
+      "main": [
+        [
+          {
+            "node": "Log to Post History",
             "type": "main",
             "index": 0
           }
@@ -433,6 +484,17 @@
         [
           {
             "node": "Send Error Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Post History": {
+      "main": [
+        [
+          {
+            "node": "Send Success Email",
             "type": "main",
             "index": 0
           }
